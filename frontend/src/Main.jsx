@@ -23,9 +23,11 @@ export default function Main() {
   
     // 1. Move fetchGroups INSIDE so it can see setGroupsList
     const [eventMode, setEventMode] = useState('blocking');
+    const [eventRefreshSignal, setEventRefreshSignal] = useState(0);
     const [petitionGroupId, setPetitionGroupId] = useState('');
     const [petitionRefreshSignal, setPetitionRefreshSignal] = useState(0);
     const [lastCreatedPetition, setLastCreatedPetition] = useState(null);
+    const activeGroup = groupsList.find((group) => Number(group.group_id) === Number(selectedGroupId)) || null;
     
 
     // grab all of the events using api/events on login
@@ -120,7 +122,8 @@ export default function Main() {
     
     const handleOpenPetition = (groupId) => {
         setEventMode('petition');
-        setPetitionGroupId(groupId);
+        setSelectedGroupId(Number(groupId));
+        setPetitionGroupId(String(groupId));
         setIsGroupsSidebarOpen(false); // Close groups sidebar
         setIsEventSidebarOpen(true);   // Open event sidebar
     };
@@ -183,7 +186,8 @@ export default function Main() {
                 {isGroupsSidebarOpen && (
                     <aside className="groups-sidebar">
                         <Groups
-                            onSelectGroup={(id) => setSelectedGroupId(Number(id))}
+                            selectedGroupId={selectedGroupId}
+                            onSelectGroup={(id) => setSelectedGroupId(id == null ? null : Number(id))}
                             onOpenPetition={handleOpenPetition} 
                             refreshSignal={groupsRefreshSignal}
                             onGroupsLoaded={(nextGroups) => {
@@ -195,9 +199,16 @@ export default function Main() {
 
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
+                    {selectedGroupId !== null ? (
+                        <div className="active-group-context">
+                            Viewing availability for: <strong>{activeGroup?.group_name || `Group ${selectedGroupId}`}</strong>
+                        </div>
+                    ) : null}
                     <Calendar
                         draftEvent={draftEvent}
                         groupId={selectedGroupId}
+                        eventRefreshSignal={eventRefreshSignal}
+                        onEventMutation={() => setEventRefreshSignal((v) => v + 1)}
                         petitionRefreshSignal={petitionRefreshSignal}
                         lastCreatedPetition={lastCreatedPetition}
                     />
@@ -213,10 +224,13 @@ export default function Main() {
                             petitionGroupId={petitionGroupId}
                             setPetitionGroupId={setPetitionGroupId}
                             groupsList={groupsList} // pass groups for dorpdown
-                            onFinalize={({ mode, createdPetition }) => {
+                            onFinalize={({ mode, createdPetition, createdEvent }) => {
                                 if (mode === 'petition' && createdPetition) {
                                     setLastCreatedPetition(createdPetition);
                                     setPetitionRefreshSignal((v) => v + 1);
+                                }
+                                if (mode === 'blocking' && createdEvent) {
+                                    setEventRefreshSignal((v) => v + 1);
                                 }
                                 setIsEventSidebarOpen(false);
                                 setDraftEvent(null);

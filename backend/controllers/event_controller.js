@@ -1,6 +1,12 @@
-function normalizePriorityValue(value) {
+function assertPriorityValue(value) {
   const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 3;
+  if (numeric === 1 || numeric === 2 || numeric === 3) {
+    return numeric;
+  }
+
+  const err = new Error(`Invalid cal_event.priority value: ${value}`);
+  err.code = 'INVALID_EVENT_PRIORITY';
+  throw err;
 }
 
 function mapDbEventForApi(event) {
@@ -9,11 +15,31 @@ function mapDbEventForApi(event) {
     start: event.event_start,
     end: event.event_end,
     event_id: event.gcal_event_id,
-    priority: normalizePriorityValue(event.priority),
+    // cal_event.priority is the persisted source of truth and should
+    // already be a valid 1|2|3 value at this point.
+    priority: assertPriorityValue(event.priority),
   };
 }
 
+const BLOCKING_LEVEL_TO_PRIORITY = Object.freeze({
+  B1: 1,
+  B2: 2,
+  B3: 3
+});
+
+function buildManualEventId() {
+  return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createEventController({ db, google, oauth2Client }) {
+  async function getCalendarForUser(userId, { createIfMissing = false } = {}) {
+    if (createIfMissing) {
+      await db.addCalendar(userId, 'primary');
+    }
+
+    return db.getCalendarID(userId);
+  }
+
   async function ensureValidToken(req, res) {
     if (!req.session || !req.session.userId || !req.session.isAuthenticated) {
       res.status(401).json({ error: "User not authenticated" });
@@ -146,7 +172,11 @@ function createEventController({ db, google, oauth2Client }) {
         const newEvents = formattedEvents.filter((event) => !existingEventIds.has(event.event_id));
 
         const googleEventIds = new Set(formattedEvents.map((event) => event.event_id));
-        const deletedEvents = existingEvents.filter((event) => !googleEventIds.has(event.gcal_event_id));
+        const deletedEvents = existingEvents.filter((event) =>
+          event.gcal_event_id &&
+          !event.gcal_event_id.startsWith('manual-') &&
+          !googleEventIds.has(event.gcal_event_id)
+        );
 
         const modifiedEvents = [];
         for (const existingEvent of existingEvents) {
@@ -248,12 +278,7 @@ function createEventController({ db, google, oauth2Client }) {
     const blockingLevel = typeof req.body?.blockingLevel === 'string'
       ? req.body.blockingLevel.trim().toUpperCase()
       : '';
-    const priorityMap = {
-      B1: 1,
-      B2: 2,
-      B3: 3
-    };
-    const mappedPriority = priorityMap[blockingLevel];
+    const mappedPriority = BLOCKING_LEVEL_TO_PRIORITY[blockingLevel];
 
     if (!mappedPriority) {
       return res.status(400).json({ error: "blockingLevel must be one of B1, B2, B3" });
@@ -282,10 +307,102 @@ function createEventController({ db, google, oauth2Client }) {
     }
   }
 
+  async function createManualEvent(req, res) {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const rawTitle = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+    const startMs = Number(req.body?.start);
+    const endMs = Number(req.body?.end);
+    const blockingLevel = typeof req.body?.blockingLevel === 'string'
+      ? req.body.blockingLevel.trim().toUpperCase()
+      : '';
+
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      return res.status(400).json({ error: "start and end are required" });
+    }
+
+    if (endMs <= startMs) {
+      return res.status(400).json({ error: "end must be greater than start" });
+    }
+
+    const priority = BLOCKING_LEVEL_TO_PRIORITY[blockingLevel];
+    if (!priority) {
+      return res.status(400).json({ error: "blockingLevel must be one of B1, B2, B3" });
+    }
+
+    const title = rawTitle || 'Busy Block';
+
+    try {
+      const calID = await getCalendarForUser(req.session.userId, { createIfMissing: true });
+      if (!calID || !calID.calendar_id) {
+        return res.status(500).json({ error: "Failed to access calendar" });
+      }
+
+      const createdEvent = await db.createManualEvent(calID.calendar_id, {
+        priority,
+        start: new Date(startMs),
+        end: new Date(endMs),
+        title,
+        event_id: buildManualEventId()
+      });
+
+      if (!createdEvent) {
+        return res.status(500).json({ error: "Failed to create manual block" });
+      }
+
+      return res.status(201).json({
+        ok: true,
+        event: mapDbEventForApi(createdEvent)
+      });
+    } catch (error) {
+      console.error('create manual event error:', error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+
+  async function deleteManualEvent(req, res) {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const eventId = typeof req.params?.eventId === 'string' ? req.params.eventId.trim() : '';
+    if (!eventId) {
+      return res.status(400).json({ error: "Invalid eventId" });
+    }
+
+    if (!eventId.startsWith('manual-')) {
+      return res.status(400).json({ error: "Only manual blocks can be deleted" });
+    }
+
+    try {
+      const calID = await db.getCalendarID(req.session.userId);
+      if (!calID || !calID.calendar_id) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const deletedEvent = await db.deleteEventById(calID.calendar_id, eventId);
+      if (!deletedEvent) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        eventId
+      });
+    } catch (error) {
+      console.error('delete manual event error:', error);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+
   return {
     getEvents,
     getStoredEvents,
-    updateGoogleEventPriority
+    updateGoogleEventPriority,
+    createManualEvent,
+    deleteManualEvent
   };
 }
 

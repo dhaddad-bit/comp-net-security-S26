@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { apiGet } from '../../api'; // Adjust path based on your folder structure
 import PetitionActionModal from '../Petitions/PetitionActionModal';
+import GoogleEventPriorityModal from './GoogleEventPriorityModal';
 import '../../css/calendar.css';
 
 // --- HELPER LOGIC (The "Business Logic" or Model Helpers) ---
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const PRIORITY_TO_BLOCKING = Object.freeze({
+  1: 'B1',
+  2: 'B2',
+  3: 'B3'
+});
+const BLOCKING_TO_PRIORITY = Object.freeze({
+  B1: 1,
+  B2: 2,
+  B3: 3
+});
 
 function getStartOfWeek(date) {
   const d = new Date(date);
@@ -17,6 +28,22 @@ function canGoToPrevWeek(date) {
   const displayedWeekStart = getStartOfWeek(date).getTime();
   const currentWeekStart = getStartOfWeek(new Date()).getTime();
   return (displayedWeekStart - ONE_WEEK_MS) >= currentWeekStart;
+}
+
+function normalizeBlockingLevel(level) {
+  const normalized = typeof level === 'string' ? level.toUpperCase() : '';
+  return BLOCKING_TO_PRIORITY[normalized] ? normalized : null;
+}
+
+function priorityToBlockingLevel(priority, eventId) {
+  const numeric = Number(priority);
+  const blockingLevel = PRIORITY_TO_BLOCKING[numeric];
+  if (!blockingLevel) {
+    console.error(`Invalid event priority for ${eventId ?? 'unknown event'}:`, priority);
+    return null;
+  }
+
+  return blockingLevel;
 }
 
 function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
@@ -62,6 +89,9 @@ function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
         ? 'ACCEPTED_ALL'
         : 'OPEN';
   const status = petition.status ?? computedStatus;
+  const normalizedPetitionBlockingLevel = normalizeBlockingLevel(
+    petition.blocking_level ?? petition.blockingLevel ?? 'B3'
+  ) || 'B3';
 
   const startValue = petition.start_time ?? petition.start ?? petition.startMs;
   const endValue = petition.end_time ?? petition.end ?? petition.endMs;
@@ -106,7 +136,8 @@ function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
     end: petition.end_time ?? petition.end ?? petition.endMs,
     start_time: petition.start_time ?? petition.start ?? petition.startMs,
     end_time: petition.end_time ?? petition.end ?? petition.endMs,
-    blockingLevel: petition.blocking_level ?? petition.blockingLevel ?? 'B3',
+    blockingLevel: normalizedPetitionBlockingLevel,
+    priority: BLOCKING_TO_PRIORITY[normalizedPetitionBlockingLevel],
     acceptedCount,
     declinedCount,
     groupSize,
@@ -116,7 +147,14 @@ function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
   };
 }
 
-export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSignal = 0, lastCreatedPetition = null }) {
+export default function CustomCalendar({
+  groupId,
+  draftEvent,
+  eventRefreshSignal = 0,
+  onEventMutation,
+  petitionRefreshSignal = 0,
+  lastCreatedPetition = null
+}) {
   // --- STATE (The "Controller" Data) ---
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date()));
   const [rawEvents, setRawEvents] = useState([]);
@@ -127,6 +165,8 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
   const [currentUserId, setCurrentUserId] = useState(null);
   const [selectedPetition, setSelectedPetition] = useState(null);
   const [isPetitionModalOpen, setIsPetitionModalOpen] = useState(false);
+  const [selectedGoogleEvent, setSelectedGoogleEvent] = useState(null);
+  const [isGoogleEventModalOpen, setIsGoogleEventModalOpen] = useState(false);
   const [petitionActionRefreshKey, setPetitionActionRefreshKey] = useState(0);
 
   // const renderCount = useRef(0);
@@ -176,7 +216,7 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
     };
     
     fetchPersonalEvents();
-  }, [weekStart]); 
+  }, [weekStart, eventRefreshSignal]); 
 
   useEffect(() => {
     setAvailabilityView('StrictView');
@@ -215,7 +255,7 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
     };
     
     fetchGroupEvents();
-  }, [groupId, weekStart, petitionActionRefreshKey]);
+  }, [groupId, weekStart, petitionActionRefreshKey, eventRefreshSignal]);
 
   useEffect(() => {
     const fetchVisiblePetitions = async () => {
@@ -267,15 +307,54 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
     setIsPetitionModalOpen(true);
   };
 
+  const handleGoogleEventClick = (calendarEvent) => {
+    setSelectedGoogleEvent(calendarEvent);
+    setIsGoogleEventModalOpen(true);
+  };
+
   const handleClosePetitionModal = () => {
     setIsPetitionModalOpen(false);
     setSelectedPetition(null);
+  };
+
+  const handleCloseGoogleEventModal = () => {
+    setIsGoogleEventModalOpen(false);
+    setSelectedGoogleEvent(null);
   };
 
   const handlePetitionActionComplete = () => {
     setIsPetitionModalOpen(false);
     setSelectedPetition(null);
     setPetitionActionRefreshKey((v) => v + 1);
+  };
+
+  const handleGoogleEventActionComplete = () => {
+    setIsGoogleEventModalOpen(false);
+    setSelectedGoogleEvent(null);
+    if (typeof onEventMutation === 'function') {
+      onEventMutation();
+    }
+  };
+
+  const handleCalendarEventClick = (event) => {
+    switch (event.mode) {
+      case 'petition':
+        handlePetitionClick(event);
+        return;
+      case 'event':
+        if (event.isPreview) {
+          return;
+        }
+        if (event.isPriorityEditable === false) {
+          console.error('Event priority is invalid; event is not editable:', event.event_id);
+          return;
+        }
+        handleGoogleEventClick(event);
+        return;
+      case 'availability':
+      default:
+        return;
+    }
   };
 
   const handlePrevWeek = () => {
@@ -308,7 +387,7 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
       start: block.start,
       end: block.end,
       event_id: `avail-${i}`,
-      mode: 'avail'
+      mode: 'availability'
     };
   });
 
@@ -421,7 +500,7 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
                   .filter(e => e.start.toDateString() === day.toDateString() && e.start.getHours() === hour)
                   .map((event, idx) => {
                     // --- hides 0 avail events
-                    if (event.mode == 'avail' && event.availLvl === 0) {
+                    if (event.mode === 'availability' && event.availLvl === 0) {
                       // Don't render 0-availability blocks, they just add clutter
                       return null;
                     }
@@ -444,36 +523,47 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
                         opacity = 0.95;
                         zIndex = 5;
                         break;
-                      case 'blocking':
-                        backgroundColor = '#34333c';
-                        opacity = 0.6;
-                        zIndex = 2;
-                        break;
-                      case 'avail':
+                      case 'availability':
                         // backgroundColor = '#2ecc71';
                         const calculatedLightness = Math.max(35, 90 - (event.availLvl * 12));
                         backgroundColor = `hsl(145, 65%, ${calculatedLightness}%)`;
                         opacity = 0.5;
-                        zIndex = 4
+                        zIndex = 4;
                         break;
+                      case 'event':
                       default:
-                        backgroundColor = '#6395ee';
-                        opacity = 1;
-                        zIndex = 3;
+                        if (event.isBlockingPreview) {
+                          backgroundColor = '#34333c';
+                          opacity = 0.6;
+                          zIndex = 2;
+                        } else if (event.isManualBlock) {
+                          backgroundColor = '#3f3d56';
+                          opacity = 1;
+                          zIndex = 3;
+                        } else {
+                          backgroundColor = '#6395ee';
+                          opacity = 1;
+                          zIndex = 3;
+                        }
                     }
+
+                    const isClickable =
+                      event.mode === 'petition' ||
+                      (event.mode === 'event' && !event.isPreview && event.isPriorityEditable !== false);
+
                     return (
                       <div
                         key={idx}
-                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''} ${event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : ''}`}
-                        onClick={event.mode === 'petition' ? () => handlePetitionClick(event) : undefined}
+                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''} ${event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : ''} ${event.isManualBlock ? 'manual-block-event' : ''}`}
+                        onClick={event.mode !== 'availability' ? () => handleCalendarEventClick(event) : undefined}
                         style={{
                           height: `${Math.max(1, visualHeight)}px`,
                           top: `${startMins}px`,
                           opacity: event.isAllDay ? 0.6 : opacity,
                           zIndex: event.isAllDay ? 1 : zIndex,
                           backgroundColor: backgroundColor,
-                          border: event.isPreview ? '2px dashed #333' : 'none',
-                          cursor: event.mode === 'petition' ? 'pointer' : 'default'
+                          border: event.isPreview ? '2px dashed #333' : undefined,
+                          cursor: isClickable ? 'pointer' : 'default'
                         }}
                       >
                         {event.title}
@@ -493,6 +583,12 @@ export default function CustomCalendar({ groupId, draftEvent, petitionRefreshSig
         onClose={handleClosePetitionModal}
         onActionComplete={handlePetitionActionComplete}
       />
+      <GoogleEventPriorityModal
+        open={isGoogleEventModalOpen}
+        event={selectedGoogleEvent}
+        onClose={handleCloseGoogleEventModal}
+        onActionComplete={handleGoogleEventActionComplete}
+      />
     </div>
   );
 }
@@ -504,6 +600,22 @@ function processEvents(rawEvents) {
   console.log("in the processing events function");
   const processed = [];
   rawEvents.forEach(event => {
+    const normalizedMode = event.mode === 'petition'
+      ? 'petition'
+      : event.mode === 'availability' || event.mode === 'avail'
+        ? 'availability'
+        : 'event';
+    const providedBlockingLevel = normalizeBlockingLevel(event.blockingLevel);
+    const derivedBlockingLevel = normalizedMode === 'event' && !event.isPreview
+      ? priorityToBlockingLevel(event.priority, event.event_id)
+      : null;
+    const normalizedBlockingLevel = providedBlockingLevel || derivedBlockingLevel;
+    const normalizedPriority = Number.isFinite(Number(event.priority))
+      ? Number(event.priority)
+      : (normalizedBlockingLevel ? BLOCKING_TO_PRIORITY[normalizedBlockingLevel] : null);
+    const eventId = event.event_id;
+    const isManualBlock = typeof eventId === 'string' && eventId.startsWith('manual-');
+
     let start = parseLocal(event.start);
     let end = parseLocal(event.end);
     if (end <= start) return;
@@ -519,20 +631,24 @@ function processEvents(rawEvents) {
         title: event.title,
         start: new Date(current),
         end: new Date(effectiveEnd),
-        id: event.event_id,
-        event_id: event.event_id,
+        id: eventId,
+        event_id: eventId,
         isAllDay: (effectiveEnd - current) >= 24 * 60 * 60 * 1000,
         isEndOfDay: effectiveEnd.getTime() === nextDayStart.getTime(),
         isPreview: event.isPreview || false,
+        isBlockingPreview: event.isBlockingPreview || false,
+        isPriorityEditable: normalizedMode === 'event' && !event.isPreview && normalizedBlockingLevel !== null && Boolean(eventId),
+        isManualBlock,
         availLvl: event.availLvl || 0, // for group availability heatmap
-        mode: event.mode || 'normal', // 'normal', 'blocking', 'petition', 'avail'
+        mode: normalizedMode,
         petitionId: event.petitionId ?? null,
         groupId: event.groupId ?? null,
         createdByUserId: event.createdByUserId ?? null,
         titleRaw: event.titleRaw ?? event.title,
         start_time: event.start_time ?? event.start,
         end_time: event.end_time ?? event.end,
-        blockingLevel: event.blockingLevel ?? null,
+        blockingLevel: normalizedBlockingLevel,
+        priority: normalizedPriority,
         acceptedCount: event.acceptedCount ?? 0,
         declinedCount: event.declinedCount ?? 0,
         groupSize: event.groupSize ?? 0,

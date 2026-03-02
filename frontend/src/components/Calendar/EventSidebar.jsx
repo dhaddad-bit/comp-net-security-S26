@@ -11,35 +11,40 @@ export default function EventSidebar({
     setPetitionGroupId,
     groupsList
 }) {
-    // const [mode, setMode] = useState('blocking'); // 'blocking' or 'petition'
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [selectedBlockingLevel, setSelectedBlockingLevel] = useState('B2');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Update the live preview whenever inputs change
     useEffect(() => {
-        if (title && date && startTime && endTime) {
+        const trimmedTitle = title.trim();
+        const previewTitle = trimmedTitle || (mode === 'blocking' ? 'Busy Block' : '');
+
+        if (previewTitle && date && startTime && endTime) {
             // Construct full Date objects for the calendar to read
             const start = new Date(`${date}T${startTime}`);
             const end = new Date(`${date}T${endTime}`);
             
             setDraftEvent({
-                title,
+                title: previewTitle,
                 start,
                 end,
-                mode,
+                mode: mode === 'petition' ? 'petition' : 'event',
+                isBlockingPreview: mode === 'blocking',
+                blockingLevel: selectedBlockingLevel,
                 isPreview: true
             });
         } else {
             setDraftEvent(null); // Clear preview if form is incomplete
         }
-    }, [title, date, startTime, endTime, mode, setDraftEvent]);
+    }, [title, date, startTime, endTime, mode, selectedBlockingLevel, setDraftEvent]);
 
     const handleSubmit = async () => {
         const trimmedTitle = title.trim();
-        if (!trimmedTitle) {
+        if (mode === 'petition' && !trimmedTitle) {
             alert("Please enter a title.");
             return;
         }
@@ -75,7 +80,7 @@ export default function EventSidebar({
                     title: trimmedTitle,
                     start: start.getTime(),
                     end: end.getTime(),
-                    blocking_level: 'B3'
+                    blocking_level: selectedBlockingLevel
                 });
 
                 if (createMeta.status !== 201) {
@@ -95,18 +100,36 @@ export default function EventSidebar({
                 setDate('');
                 setStartTime('');
                 setEndTime('');
+                setSelectedBlockingLevel('B2');
                 return;
             }
 
+            const createMeta = await apiPostWithMeta('/api/events/manual', {
+                title: trimmedTitle,
+                start: start.getTime(),
+                end: end.getTime(),
+                blockingLevel: selectedBlockingLevel
+            });
+
+            if (createMeta.status !== 201) {
+                const msg = createMeta?.data?.error || 'Failed to create busy block.';
+                alert(msg);
+                return;
+            }
+
+            const createdEvent = createMeta?.data?.event || null;
+
             onFinalize({
                 mode: 'blocking',
-                createdPetition: null
+                createdPetition: null,
+                createdEvent
             });
 
             setTitle('');
             setDate('');
             setStartTime('');
             setEndTime('');
+            setSelectedBlockingLevel('B2');
         } catch (error) {
             console.error("Finalize failed:", error);
             alert("Failed to finalize. Please try again.");
@@ -160,8 +183,19 @@ export default function EventSidebar({
                             </option>
                         ))}
                     </select>
+                    <br />
                 </>
             )}
+            <label>Priority</label>
+            <select
+                value={selectedBlockingLevel}
+                onChange={(e) => setSelectedBlockingLevel(e.target.value)}
+                className="priority-select-dropdown"
+            >
+                <option value="B1">Soft (B1)</option>
+                <option value="B2">Important (B2)</option>
+                <option value="B3">Hard (B3)</option>
+            </select>
                 <br />
             <label>Date & Time</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} />

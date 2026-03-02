@@ -7,7 +7,9 @@ function createEventRouter(deps) {
 
   router.get('/api/events', controller.getEvents);
   router.get('/api/get-events', controller.getStoredEvents);
+  router.post('/api/events/manual', controller.createManualEvent);
   router.post('/api/events/:eventId/priority', controller.updateGoogleEventPriority);
+  router.delete('/api/events/:eventId', controller.deleteManualEvent);
 
   return router;
 }
