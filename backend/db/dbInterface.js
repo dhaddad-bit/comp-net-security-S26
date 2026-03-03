@@ -81,7 +81,8 @@ const addCalendar = async(user_id, calendar_name="primary") => {
     const result = await pool.query(
         `INSERT INTO calendar (user_id, calendar_name)
         VALUES ($1, $2)
-        ON CONFLICT DO NOTHING`,
+        ON CONFLICT DO NOTHING
+        RETURNING calendar_id, user_id, calendar_name`,
         [
             user_id,
             calendar_name

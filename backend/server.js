@@ -128,7 +128,7 @@ app.post('/api/create-username', async (req, res) => {
   if (!usernameSymbols.test(username)) {
     errs.push('Username must only contain alphabetic letters, digits, and \'_\' and \'.\'');
   }
-  if (errs > 0) {
+  if (errs.length > 0) {
     res.json({ sucesss: false, errors: errs })
   }
 
@@ -143,7 +143,7 @@ app.post('/api/create-username', async (req, res) => {
 });
 
 app.post('/api/select-calendars', async (req, res) => {
-
+  res.json({ success: true });
 });
 
 app.get('/logout', (req, res) => {
@@ -354,12 +354,6 @@ async function ensureValidToken(req, res) {
   }
 }
 
-
-// endpoint for users to choose their calendars upon first login
-app.post("/calendarselection", async (req, res) => {
-  
-})
-
 app.get("/api/events", async (req, res) => {
   // TODO: add a way to pick which calendar to use
   // TODO: have the database cache the next month or so of events
@@ -440,7 +434,7 @@ app.get("/api/events", async (req, res) => {
     });
     // TODO: add a check to see if their calendar is already in the db
     try {
-      await db.addCalendar(req.session.userId, calendar.summary);
+      await db.addCalendar(req.session.userId, 'primary');
       const calID = await db.getCalendarID(req.session.userId);
 
       // grab existing events in calendar from db

@@ -41,7 +41,7 @@ export default function UsernameCreation() {
         try {
             const res = await apiPost('/api/create-username', { username });
             if (res.success) {
-                await apiPost('/api/select-calendars', { calendars: selectedCals});
+                await apiPost('/api/select-calendars', { calendars: selectedCals });
                 window.location.href = '/';
             } else {
                 setErrors(res.errors);
