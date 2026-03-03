@@ -143,7 +143,23 @@ app.post('/api/create-username', async (req, res) => {
 });
 
 app.post('/api/select-calendars', async (req, res) => {
-  res.json({ success: true });
+  try {
+
+    const { calendars } = req.body;
+    if (!req.session.userId) {
+      return res.json({ success: false, error: 'Not authenticated'});
+    }
+
+    // add each calendar selected
+    for (const calendarName of calendars) {
+      await db.addCalendar(req.session.userId, calendarName);
+    }
+
+    res.json({ success: true }); 
+  } catch (error) {
+    console.error('Error selecting calendars');
+    res.status(500).json({ success: false, error: 'Failed to select calendars'})
+  }
 });
 
 app.get('/logout', (req, res) => {
@@ -387,7 +403,7 @@ app.get("/api/events", async (req, res) => {
   try {
     // Set credentials for this specific request using session data
     const user = await db.getUserByID(req.session.userId);
-    console.log('user in /api/events: ', user);
+
     if (!user || !user.refresh_token) {
       return res.status(401).json({ error: "No tokens found. Please re-authenticate." });
     }
@@ -405,6 +421,9 @@ app.get("/api/events", async (req, res) => {
     const calendarStart = new Date();
 
     calendarStart.setDate(calendarStart.getDate() - 7);
+
+    const allCalendars = await db.getUserCalendars(user.user_id);
+    console.log("calendars:", allCalendars);
 
     const response = await calendar.events.list({
       calendarId: 'primary',

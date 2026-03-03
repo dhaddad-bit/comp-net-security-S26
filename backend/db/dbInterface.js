@@ -745,6 +745,15 @@ const deleteFailedPetition = async ({ petitionId, userId }) => {
     }
 };
 
+const getUserCalendars = async(user_id) => {
+    const result = await pool.query(
+        `SELECT DISTINCT calendar_name FROM calendar WHERE user_id = $1`,
+        [user_id]
+    );
+    console.log("hi");
+    return result.rows.map(row => row.calendar_name);
+}
+
 // STELLA TODO: changePriority
 
 module.exports = {
@@ -783,5 +792,6 @@ module.exports = {
     listGroupPetitions,
     listUserPetitions,
     respondToPetition,
-    deleteFailedPetition
+    deleteFailedPetition,
+    getUserCalendars
 }
