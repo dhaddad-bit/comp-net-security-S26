@@ -141,6 +141,10 @@ app.post('/api/create-username', async (req, res) => {
   }
 });
 
+app.post('/api/select-calendars', async (req, res) => {
+
+});
+
 app.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {

@@ -41,6 +41,7 @@ export default function UsernameCreation() {
         try {
             const res = await apiPost('/api/create-username', { username });
             if (res.success) {
+                await apiPost('/api/select-calendars', { calendars: selectedCals});
                 window.location.href = '/';
             } else {
                 setErrors(res.errors);
@@ -54,11 +55,8 @@ export default function UsernameCreation() {
     useEffect(() => {
         const getCals = async () => {
             const cals = await apiGet('/api/calendars');
+            console.log(cals);
             const updatedCals = cals.map((cal) => {
-                if (cal.primary === true) {
-                    console.log(cal);
-                    cal.summary = 'Primary';
-                }
                 return {summary: cal.summary, checked: false};
             });
             setCalendars(updatedCals);
