@@ -308,7 +308,7 @@ function createEventController({ db, google, oauth2Client }) {
   }
 
   async function createManualEvent(req, res) {
-    if (!req.session || !req.session.userId) {
+    if (!req.session || !req.session.userId || !req.session.isAuthenticated) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
