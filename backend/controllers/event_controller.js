@@ -212,7 +212,7 @@ function createEventController({ db, google, oauth2Client }) {
       const freshEvents = await db.getEventsByCalendarID(calID.calendar_id);
       return res.json(freshEvents.map(mapDbEventForApi));
     } catch (error) {
-      console.error('Error updating calendar', error);
+      console.error('Error updating calendar; now redirecting to /auth/google');
 
       // let's try redirecting to login
       res.redirect('/auth/google');
