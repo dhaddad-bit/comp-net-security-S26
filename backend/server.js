@@ -373,10 +373,6 @@ async function ensureValidToken(req, res) {
 app.get("/api/events", async (req, res) => {
   // TODO: add a way to pick which calendar to use
   // TODO: have the database cache the next month or so of events
-  console.log('Session ID:', req.sessionID);
-  console.log('Session data:', req.session);
-  console.log('userid:', req.session.userId);
-  console.log('isAuthenticated:', req.session.isAuthenticated);
   try {
     const isValid = await ensureValidToken(req, res);
     if (!isValid) return;
@@ -423,7 +419,7 @@ app.get("/api/events", async (req, res) => {
     calendarStart.setDate(calendarStart.getDate() - 7);
 
     const allCalendars = await db.getUserCalendars(user.user_id);
-    console.log("calendars:", allCalendars);
+    // ensure primary calendar is fetched with no selection
 
     const response = await calendar.events.list({
       calendarId: 'primary',

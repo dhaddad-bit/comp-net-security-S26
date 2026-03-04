@@ -746,12 +746,17 @@ const deleteFailedPetition = async ({ petitionId, userId }) => {
 };
 
 const getUserCalendars = async(user_id) => {
-    const result = await pool.query(
-        `SELECT DISTINCT calendar_name FROM calendar WHERE user_id = $1`,
-        [user_id]
-    );
-    console.log("hi");
-    return result.rows.map(row => row.calendar_name);
+    console.log("getUserCalendars called with user_id:", user_id);
+    try {
+        const result = await pool.query(
+            `SELECT DISTINCT calendar_name FROM calendar WHERE user_id = $1`,
+            [user_id]
+        );
+        return result.rows.map(row => row.calendar_name);
+    } catch (err) {
+        console.error("Error in getUserCalendars:", err.message);
+        throw err;
+    }
 }
 
 // STELLA TODO: changePriority
