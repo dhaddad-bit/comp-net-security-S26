@@ -58,21 +58,12 @@ function createEventController({ db, google, oauth2Client }) {
       console.log("Token expired or missing expiry. Refreshing...");
       console.log("User refresh token status:", user.refresh_token ? "Present" : "MISSING");
 
-      oauth2Client.setCredentials({
-        refresh_token: user.refresh_token
-      });
-
       try {
-        const { credentials } = await oauth2Client.getAccessToken();
-        const { access_token, expiry_date } = oauth2Client.credentials;
-        await db.updateTokens(
-          req.session.userId,
-          access_token,
-          expiry_date
-        );
+        oauth2Client.setCredentials({
+          refresh_token: user.refresh_token
+        });
         console.log("Token refreshed successfully.");
 
-        oauth2Client.setCredentials(credentials);
         return true;
       } catch (errRefresh) {
         if (errRefresh.response && errRefresh.response.data && errRefresh.response.data.error === 'invalid_grant') {
@@ -89,12 +80,6 @@ function createEventController({ db, google, oauth2Client }) {
         return false;
       }
     }
-
-    oauth2Client.setCredentials({
-      refresh_token: user.refresh_token,
-      access_token: user.access_token,
-      expiry_date: expiryDate
-    });
     return true;
   }
 
@@ -130,9 +115,9 @@ function createEventController({ db, google, oauth2Client }) {
       }
 
       oauth2Client.setCredentials({
-        refresh_token: user.refresh_token,
-        access_token: user.access_token,
-        expiry_date: user.token_expiry ? new Date(user.token_expiry).getTime() : null
+        refresh_token: user.refresh_token
+        // access_token: user.access_token,
+        // expiry_date: user.token_expiry ? new Date(user.token_expiry).getTime() : null
       });
 
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
@@ -227,16 +212,14 @@ function createEventController({ db, google, oauth2Client }) {
       const freshEvents = await db.getEventsByCalendarID(calID.calendar_id);
       return res.json(freshEvents.map(mapDbEventForApi));
     } catch (error) {
-      console.error('Error updating calendar; now redirecting to /auth/google');
+      console.error('Error updating calendar', error);
 
-      // let's try redirecting to login
-      res.redirect('/auth/google');
+      if (error.code === 401 || error.code === 403) {
+        req.session.destroy();
+        return res.status(401).json({ error: "Authentication expired. Please log in again." });
+      }
 
-      // if (error.code === 401 || error.code === 403) {
-      //   req.session.destroy();
-      //   return res.status(401).json({ error: "Authentication expired. Please log in again." });
-      // }
-
+      return res.status(500).json({ error: "Failed to fetch events" });
     }
   }
 
