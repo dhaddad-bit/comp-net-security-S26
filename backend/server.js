@@ -11,8 +11,10 @@ const url = require('url');
 const pgSession = require('connect-pg-simple')(session);
 const email = require('./emailer'); 
 const groupModule = require("./groups");
-const petitionRoutes = require("./routes/petition_routes");
-const createEventRouter = require("./routes/event_routes");
+
+// Algoritihm inports
+const { fetchAndMapGroupEvents } = require('./algorithm/algorithm_adapter');
+const { computeAvailabilityBlocksAllViews } = require('./algorithm/algorithm');
 // Load the .env file, determine whether on production or local dev
 require('dotenv').config({
   path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
@@ -57,7 +59,6 @@ app.use(session({
 
 // use the modules
 groupModule(app);
-app.use(petitionRoutes);
 
 app.use(express.static(path.join(__dirname, "..", "frontend", "build")));
 
@@ -72,8 +73,6 @@ const scopes = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile'
 ];
-
-app.use(createEventRouter({ db, google, oauth2Client }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -373,6 +372,10 @@ async function ensureValidToken(req, res) {
 app.get("/api/events", async (req, res) => {
   // TODO: add a way to pick which calendar to use
   // TODO: have the database cache the next month or so of events
+  console.log('Session ID:', req.sessionID);
+  console.log('Session data:', req.session);
+  console.log('userid:', req.session.userId);
+  console.log('isAuthenticated:', req.session.isAuthenticated);
   try {
     const isValid = await ensureValidToken(req, res);
     if (!isValid) return;
@@ -399,7 +402,7 @@ app.get("/api/events", async (req, res) => {
   try {
     // Set credentials for this specific request using session data
     const user = await db.getUserByID(req.session.userId);
-
+    console.log('user in /api/events: ', user);
     if (!user || !user.refresh_token) {
       return res.status(401).json({ error: "No tokens found. Please re-authenticate." });
     }
@@ -417,9 +420,6 @@ app.get("/api/events", async (req, res) => {
     const calendarStart = new Date();
 
     calendarStart.setDate(calendarStart.getDate() - 7);
-
-    const allCalendars = await db.getUserCalendars(user.user_id);
-    // ensure primary calendar is fetched with no selection
 
     const response = await calendar.events.list({
       calendarId: 'primary',
@@ -449,7 +449,7 @@ app.get("/api/events", async (req, res) => {
     });
     // TODO: add a check to see if their calendar is already in the db
     try {
-      await db.addCalendar(req.session.userId, 'primary');
+      await db.addCalendar(req.session.userId, calendar.summary);
       const calID = await db.getCalendarID(req.session.userId);
 
       // grab existing events in calendar from db
@@ -461,7 +461,18 @@ app.get("/api/events", async (req, res) => {
 
       // check if there are deleted events
       const googleEventIds = new Set(formattedEvents.map(event => event.event_id));
-      const deletedEvents = existingEvents.filter(event => !googleEventIds.has(event.gcal_event_id));
+
+      // const deletedEvents = existingEvents.filter(event => !googleEventIds.has(event.gcal_event_id));
+      const deletedEvents = existingEvents.filter(event => {
+          // 1. If the event ID starts with 'manual-', it was made in our app. Keep it!
+          if (event.gcal_event_id && event.gcal_event_id.startsWith('manual-')) {
+              return false; // Don't flag it for deletion
+          }
+          
+          // 2. Otherwise, if it's missing from Google, flag it for deletion
+          return !googleEventIds.has(event.gcal_event_id);
+      });
+
 
       // check if there are modified events (time and name only)
       const modifiedEvents = [];
@@ -566,6 +577,42 @@ app.get('/api/get-events', async (req, res) => {
   }
 })
 
+app.post("/api/add-events", async (req, res) => {
+  try {
+    const { events } = req.body;
+
+    if (!events || !Array.isArray(events) || events.length === 0) {
+      return res.status(400).json({ error: "Invalid events data" });
+    }
+
+    const userId = req.session.userId; 
+    
+    if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const calResult = await db.getCalendarID(userId);
+    
+    if (!calResult || !calResult.calendar_id) {
+       return res.status(404).json({ error: "Calendar not found for user" });
+    }
+    
+    const cal_id = calResult.calendar_id;
+
+    await db.addEvents(cal_id, events);
+
+    return res.status(201).json({ success: true, message: `Added ${events.length} event(s)` });
+  }
+  catch (error) {
+    console.error("Error adding events:", error);
+    return res.status(500).json({ error: "Failed to add events" });
+  }
+});
+
+app.post("/api/add-petition", async (req, res) => {
+
+});
+
 app.get('/api/email-send-test', async(req,res) => {
   try {
     email.groupRequest("sgreenvoss@gmail.com", "stellag",
@@ -641,15 +688,7 @@ app.get('*', (req, res) => {
   }
 });
 
-async function startServer() {
-  await db.ensurePetitionSchema();
-
-  app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
-
-startServer().catch((error) => {
-  console.error('Failed to initialize server schema', error);
-  process.exit(1);
+app.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
 });
+
