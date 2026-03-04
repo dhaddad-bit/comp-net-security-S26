@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiGet } from '../../api'; // Adjust path based on your folder structure
+import PetitionActionModal from '../Petitions/PetitionActionModal';
 import '../../css/calendar.css';
 
 // --- HELPER LOGIC (The "Business Logic" or Model Helpers) ---
@@ -17,6 +18,70 @@ function isCurrentWeek(date) {
   return date.getTime() === currWeekStart.getTime();
 }
 
+function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
+  if (!petition) return null;
+
+  const petitionGroupId = Number(petition.group_id ?? petition.groupId);
+  const petitionId = Number(petition.petition_id ?? petition.petitionId ?? petition.id);
+
+  const startValue = petition.start_time ?? petition.start ?? petition.startMs;
+  const endValue = petition.end_time ?? petition.end ?? petition.endMs;
+  const startDate = typeof startValue === 'number'
+    ? new Date(startValue)
+    : new Date(Date.parse(startValue));
+  const endDate = typeof endValue === 'number'
+    ? new Date(endValue)
+    : new Date(Date.parse(endValue));
+
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
+
+  if (activeGroupId && Number(activeGroupId) !== petitionGroupId) {
+    return null;
+  }
+
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = weekStartMs + (7 * 24 * 60 * 60 * 1000);
+  if (endMs <= weekStartMs || startMs >= weekEndMs) {
+    return null;
+  }
+
+  const acceptedCount = Number(petition.accepted_count ?? petition.acceptedCount ?? 0);
+  const declinedCount = Number(petition.declined_count ?? petition.declinedCount ?? 0);
+  const groupSize = Number(petition.group_size ?? petition.groupSize ?? 0);
+
+  const computedStatus =
+    declinedCount > 0
+      ? 'FAILED'
+      : (groupSize > 0 && acceptedCount === groupSize)
+        ? 'ACCEPTED_ALL'
+        : 'OPEN';
+  const status = petition.status ?? computedStatus;
+
+  return {
+    event_id: `petition-${petitionId}`,
+    mode: 'petition',
+    petitionId,
+    groupId: petitionGroupId,
+    createdByUserId: Number(petition.created_by_user_id ?? petition.createdByUserId ?? null),
+    title: activeGroupId
+      ? (petition.title || 'Petition')
+      : (petition.group_name ? `${petition.group_name}: ${petition.title || 'Petition'}` : (petition.title || 'Petition')),
+    titleRaw: petition.title || 'Petition',
+    start: petition.start_time ?? petition.start ?? petition.startMs,
+    end: petition.end_time ?? petition.end ?? petition.endMs,
+    start_time: petition.start_time ?? petition.start ?? petition.startMs,
+    end_time: petition.end_time ?? petition.end ?? petition.endMs,
+    acceptedCount,
+    declinedCount,
+    groupSize,
+    currentUserResponse: petition.current_user_response ?? petition.currentUserResponse ?? null,
+    status,
+    groupName: petition.group_name ?? petition.groupName ?? ''
+  };
+}
+
 
 export default function CustomCalendar({ groupId, draftEvent }) {
   // --- STATE (The "Controller" Data) ---
@@ -24,6 +89,11 @@ export default function CustomCalendar({ groupId, draftEvent }) {
   const [rawEvents, setRawEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupAvailability, setGroupAvailability] = useState([]);
+  const [visiblePetitions, setVisiblePetitions] = useState([]);
+  const [selectedPetition, setSelectedPetition] = useState(null);
+  const [isPetitionModalOpen, setIsPetitionModalOpen] = useState(false);
+  const [petitionActionRefreshKey, setPetitionActionRefreshKey] = useState(0);
+  const petitionDraftActive = draftEvent?.mode === 'petition';
 
   // const renderCount = useRef(0);
   // renderCount.current++;
@@ -124,6 +194,47 @@ export default function CustomCalendar({ groupId, draftEvent }) {
     fetchGroupEvents();
   }, [groupId, weekStart]);
 
+  useEffect(() => {
+    const fetchVisiblePetitions = async() => {
+      const endpoint = groupId ? `/api/groups/${groupId}/petitions` : '/api/petitions';
+
+      try {
+        const response = await apiGet(endpoint);
+        if (!Array.isArray(response)) {
+          setVisiblePetitions([]);
+          return;
+        }
+
+        const mappedPetitions = response
+          .map((petition) => mapPetitionToCalendarEvent(petition, groupId, weekStart))
+          .filter(Boolean);
+
+        setVisiblePetitions(mappedPetitions);
+      } catch (error) {
+        console.error('Failed to fetch petitions:', error);
+        setVisiblePetitions([]);
+      }
+    };
+
+    fetchVisiblePetitions();
+  }, [groupId, weekStart, petitionActionRefreshKey, petitionDraftActive]);
+
+  const handlePetitionClick = (petitionEvent) => {
+    setSelectedPetition(petitionEvent);
+    setIsPetitionModalOpen(true);
+  };
+
+  const handleClosePetitionModal = () => {
+    setIsPetitionModalOpen(false);
+    setSelectedPetition(null);
+  };
+
+  const handlePetitionActionComplete = () => {
+    setIsPetitionModalOpen(false);
+    setSelectedPetition(null);
+    setPetitionActionRefreshKey((v) => v + 1);
+  };
+
   const handlePrevWeek = () => {
     const newDate = new Date(weekStart);
     newDate.setDate(newDate.getDate() - 7);
@@ -145,7 +256,8 @@ export default function CustomCalendar({ groupId, draftEvent }) {
   // --- PREPARING THE VIEW ---
   const events = processEvents(finalRawEvents);
   const groupEvents = processEvents(groupAvailability);
-  const allEvents = events.concat(groupEvents);
+  const petitionEvents = processEvents(visiblePetitions);
+  const allEvents = events.concat(groupEvents, petitionEvents);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -153,6 +265,19 @@ export default function CustomCalendar({ groupId, draftEvent }) {
     return d;
   });
   const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  const getPetitionStatusClass = (event) => {
+    if (event.mode !== 'petition') return '';
+
+    switch (event.status) {
+      case 'FAILED':
+        return 'petition-failed';
+      case 'ACCEPTED_ALL':
+        return 'petition-accepted-all';
+      default:
+        return 'petition-open';
+    }
+  };
 
   return (
     <div id="calendar-container">
@@ -229,14 +354,16 @@ export default function CustomCalendar({ groupId, draftEvent }) {
                     return (
                       <div
                         key={idx}
-                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''}`}
+                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''} ${event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : ''}`}
+                        onClick={event.mode === 'petition' ? () => handlePetitionClick(event) : undefined}
                         style={{
                           height: `${Math.max(1, visualHeight)}px`,
                           top: `${startMins}px`,
                           opacity: event.isAllDay ? 0.6 : opacity,
                           zIndex: event.isAllDay ? 1 :zIndex,
                           backgroundColor: backgroundColor,
-                          border: event.isPreview ? '2px dashed #333' : 'none'
+                          border: event.isPreview ? '2px dashed #333' : 'none',
+                          cursor: event.mode === 'petition' ? 'pointer' : 'default'
                           
                         }}
                       >
@@ -250,6 +377,12 @@ export default function CustomCalendar({ groupId, draftEvent }) {
         ))}
       </div>
       {loading && <p>Loading events...</p>}
+      <PetitionActionModal
+        open={isPetitionModalOpen}
+        petition={selectedPetition}
+        onClose={handleClosePetitionModal}
+        onActionComplete={handlePetitionActionComplete}
+      />
     </div>
   );
 }
@@ -277,11 +410,24 @@ function processEvents(rawEvents) {
         start: new Date(current),
         end: new Date(effectiveEnd),
         id: event.event_id,
+        event_id: event.event_id,
         isAllDay: (effectiveEnd - current) >= 24 * 60 * 60 * 1000,
         isEndOfDay: effectiveEnd.getTime() === nextDayStart.getTime(),
         isPreview: event.isPreview || false,
         availLvl: event.availLvl || 0, // for group availability heatmap
         mode: event.mode || 'normal', // 'normal', 'blocking', 'petition', 'avail'
+        petitionId: event.petitionId ?? null,
+        groupId: event.groupId ?? null,
+        createdByUserId: event.createdByUserId ?? null,
+        titleRaw: event.titleRaw ?? event.title,
+        start_time: event.start_time ?? event.start,
+        end_time: event.end_time ?? event.end,
+        acceptedCount: event.acceptedCount ?? 0,
+        declinedCount: event.declinedCount ?? 0,
+        groupSize: event.groupSize ?? 0,
+        currentUserResponse: event.currentUserResponse ?? null,
+        status: event.status ?? null,
+        groupName: event.groupName ?? '',
         // isAvail: event.isAvail || false
       });
       current = nextDayStart;
