@@ -112,6 +112,29 @@ const addEvents = async(cal_id, events, priority=3) => {
     };
 }
 
+// Updates the priority (blocking level) of an event
+const updateEventPriority = async (event_id, priority) => {
+    const query = `
+        UPDATE cal_event 
+        SET priority = $1 
+        WHERE gcal_event_id = $2 
+        RETURNING *;
+    `;
+    const res = await pool.query(query, [priority, event_id]);
+    return res.rows[0];
+};
+
+// Deletes an event completely
+const deleteEventByGcalEventId = async (event_id) => {
+    const query = `
+        DELETE FROM cal_event 
+        WHERE gcal_event_id = $1 
+        RETURNING *;
+    `;
+    const res = await pool.query(query, [event_id]);
+    return res.rows[0];
+};
+
 /**
  * This takes the calendar id and deletes the events
  * under that calendar id that ended a week ago or more
@@ -405,6 +428,8 @@ module.exports = {
     searchFor,
     addCalendar,
     addEvents,
+    updateEventPriority,
+    deleteEventByGcalEventId,
     getEventsByCalendarID,
     deleteEventsByIds,
     updateEvent,

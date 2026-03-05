@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiGet } from '../../api'; // Adjust path based on your folder structure
+import { apiGet, apiPost } from '../../api'; // Adjust path based on your folder structure
 import '../../css/calendar.css';
 
 // --- HELPER LOGIC (The "Business Logic" or Model Helpers) ---
@@ -17,6 +17,109 @@ function isCurrentWeek(date) {
   return date.getTime() === currWeekStart.getTime();
 }
 
+// --- THE NEW MODAL COMPONENT ---
+function EventClickModal({ event, onClose, onRefresh }) {
+  // Local state for the dropdown
+  const [newPriority, setNewPriority] = useState(event.priority || 1);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Send the update to the backend
+      // You will need to create this route in server.js!
+      await apiPost('/api/change-blocking-lvl', {
+        event_id: event.id,
+        priority: parseInt(newPriority)
+      });
+      
+      onRefresh(); // Trigger a calendar refetch
+      onClose();   // Close the modal
+    } catch (error) {
+      console.error("Failed to update priority", error);
+      alert("Failed to update blocking level.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${event.title}"?`);
+    if (!confirmDelete) return;
+
+    setIsSaving(true);
+    try {
+      await apiPost('/api/delete-event', {
+        event_id: event.id
+      });
+      
+      onRefresh(); 
+      onClose();   
+    } catch (error) {
+      console.error("Failed to delete event", error);
+      alert("Failed to delete the event.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '350px' }}>
+        <h2 style={{ marginTop: 0 }}>{event.title}</h2>
+        <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
+        <p><strong>End:</strong> {event.end.toLocaleString()}</p>
+        <p><strong>Priority:</strong> {event.priority.toLocaleString()}</p>
+        
+        <div style={{ margin: '15px 0' }}>
+          <label><strong>Blocking Level:</strong></label>
+          <select 
+            value={newPriority} 
+            onChange={(e) => setNewPriority(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          >
+            <option value={1}>Low (Optional)</option>
+            <option value={2}>Medium (Felxable)</option>
+            <option value={3}>High (Immovable)</option>
+          </select>
+        </div>
+
+        {/*Action Buttons */}
+        <div className="modal-actions">
+          <button 
+            onClick={handleDelete} 
+            disabled={isSaving}
+            style={{ 
+              backgroundColor: '#d63031', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 16px', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Delete Event
+          </button>
+
+          <button 
+            onClick={onClose} 
+            disabled={isSaving}
+          >
+            Cancel
+          </button>
+
+          <button 
+            className="primary-btn" 
+            onClick={handleSave} 
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CustomCalendar({ groupId, draftEvent }) {
   // --- STATE (The "Controller" Data) ---
@@ -24,7 +127,14 @@ export default function CustomCalendar({ groupId, draftEvent }) {
   const [rawEvents, setRawEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupAvailability, setGroupAvailability] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const refreshPersonalEvents = async () => {
+    const personalEvents = await apiGet('/api/get-events');
+    if (Array.isArray(personalEvents)) {
+      setRawEvents(personalEvents);
+    }
+  };
   // const renderCount = useRef(0);
   // renderCount.current++;
   // console.log("Render #", renderCount.current, "rawEvents length:", rawEvents.length);
@@ -226,18 +336,26 @@ export default function CustomCalendar({ groupId, draftEvent }) {
                         opacity = 1;
                         zIndex = 3;
                     }
+                    if (event.id.startsWith("manual-")) backgroundColor = '#6f6e76';
+
+                    const isClickable = event.mode !== 'avail' && event.mode !== 'petition' && !event.isPreview;
+
                     return (
                       <div
                         key={idx}
                         className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''}`}
+                        // Make it clickable!
+                        onClick={() => {
+                          if (isClickable) setSelectedEvent(event);
+                        }}
                         style={{
                           height: `${Math.max(1, visualHeight)}px`,
                           top: `${startMins}px`,
                           opacity: event.isAllDay ? 0.6 : opacity,
-                          zIndex: event.isAllDay ? 1 :zIndex,
+                          zIndex: event.isAllDay ? 1 : zIndex,
                           backgroundColor: backgroundColor,
-                          border: event.isPreview ? '2px dashed #333' : 'none'
-                          
+                          border: event.isPreview ? '2px dashed #333' : 'none',
+                          cursor: isClickable ? 'pointer' : 'default' // Add a pointer cursor so users know it's clickable
                         }}
                       >
                         {event.title}
@@ -250,6 +368,14 @@ export default function CustomCalendar({ groupId, draftEvent }) {
         ))}
       </div>
       {loading && <p>Loading events...</p>}
+
+      {selectedEvent && (
+        <EventClickModal 
+          event={selectedEvent} 
+          onClose={() => setSelectedEvent(null)}
+          onRefresh={refreshPersonalEvents}
+        />
+      )}
     </div>
   );
 }
@@ -277,12 +403,13 @@ function processEvents(rawEvents) {
         start: new Date(current),
         end: new Date(effectiveEnd),
         id: event.event_id,
+        // event_id: event.gcal_event_id,
+        priority: event.priority || 1,
         isAllDay: (effectiveEnd - current) >= 24 * 60 * 60 * 1000,
         isEndOfDay: effectiveEnd.getTime() === nextDayStart.getTime(),
         isPreview: event.isPreview || false,
         availLvl: event.availLvl || 0, // for group availability heatmap
         mode: event.mode || 'normal', // 'normal', 'blocking', 'petition', 'avail'
-        // isAvail: event.isAvail || false
       });
       current = nextDayStart;
     }

@@ -528,7 +528,8 @@ app.get('/api/get-events', async (req, res) => {
       title: event.event_name,
       start: event.event_start,
       end: event.event_end,
-      event_id: event.gcal_event_id
+      event_id: event.gcal_event_id,
+      priority: event.priority
     }));
     
     return res.json(formattedEvents);
@@ -577,6 +578,43 @@ app.post("/api/add-events", async (req, res) => {
     return res.status(500).json({ error: "Failed to add events" });
   }
 });
+
+// --- CHANGE BLOCKING LEVEL ENDPOINT ---
+app.post('/api/change-blocking-lvl', async (req, res) => {
+    try {
+        const { event_id, priority } = req.body;
+
+        if (!event_id || priority === undefined) {
+            return res.status(400).json({ error: "Missing event_id or priority" });
+        }
+
+        await db.updateEventPriority(event_id, parseInt(priority));
+        
+        return res.status(200).json({ success: true, message: "Blocking level updated" });
+    } catch (error) {
+        console.error("Error updating blocking level:", error);
+        return res.status(500).json({ error: "Failed to update blocking level" });
+    }
+});
+
+// --- DELETE EVENT ENDPOINT ---
+app.post('/api/delete-event', async (req, res) => {
+    try {
+        const { event_id } = req.body;
+
+        if (!event_id) {
+            return res.status(400).json({ error: "Missing event_id" });
+        }
+
+        await db.deleteEventByGcalEventId(event_id);
+        
+        return res.status(200).json({ success: true, message: "Event deleted" });
+    } catch (error) {
+        console.error("Error deleting event:", error);
+        return res.status(500).json({ error: "Failed to delete event" });
+    }
+});
+
 
 app.post("/api/add-petition", async (req, res) => {
 
