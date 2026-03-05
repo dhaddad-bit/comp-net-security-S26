@@ -141,11 +141,9 @@ export default function Main() {
                 onAccept={() => handleInviteDecision('accept')}
                 onDecline={() => handleInviteDecision('decline')}
             />
-            <section id="syncCals">
-                <button onClick={handleSyncCals}>Sync Calendars</button>
-            </section>
-            <section id="logout">
-                <button onClick={handleLogout} id="logoutBtn">Logout</button>
+            <section id="manButtons">
+                <button id="syncCals" onClick={handleSyncCals}>Sync Calendars</button>
+                <button id="logout" onClick={handleLogout}>Logout</button>
             </section>
             <header>
                 <p id="logo">Social Schedule</p>
