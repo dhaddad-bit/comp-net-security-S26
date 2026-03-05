@@ -31,6 +31,7 @@ export default function Main() {
     const fetchEvents = async () => {
         try {
             await apiGet('/api/events');
+            setCalRefreshSignal((prev) => prev + 1);
         } catch (error) {
             console.error('Error loading events:', error);
         }
