@@ -625,7 +625,18 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await db.ensurePetitionSchema();
+    console.log("Petition schema verified.");
+  } catch (error) {
+    console.error("Failed to verify petition schema:", error);
+    process.exit(1);
+  }
 
+  app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+startServer();

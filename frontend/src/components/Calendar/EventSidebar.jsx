@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../../css/eventSidebar.css';
-import { apiPost, apiPostWithMeta } from '../../api.js';
+import { apiGetWithMeta, apiPost, apiPostWithMeta } from '../../api.js';
 
 export default function EventSidebar({ 
     setDraftEvent, 
@@ -17,6 +17,8 @@ export default function EventSidebar({
     const [endTime, setEndTime] = useState('');
     const [selectedBlockingLevel, setSelectedBlockingLevel] = useState('B2');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [petitionPreflightState, setPetitionPreflightState] = useState('idle'); // idle | loading | ok | error
+    const [petitionPreflightMessage, setPetitionPreflightMessage] = useState('');
 
     // Update the live preview whenever inputs change
     useEffect(() => {
@@ -40,6 +42,55 @@ export default function EventSidebar({
             setDraftEvent(null); // Clear preview if form is incomplete
         }
     }, [title, date, startTime, endTime, mode, selectedBlockingLevel, setDraftEvent]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const runPreflight = async() => {
+            if (mode !== 'petition') {
+                setPetitionPreflightState('idle');
+                setPetitionPreflightMessage('');
+                return;
+            }
+
+            if (!petitionGroupId) {
+                setPetitionPreflightState('idle');
+                setPetitionPreflightMessage('Select a group to verify petition access.');
+                return;
+            }
+
+            setPetitionPreflightState('loading');
+            setPetitionPreflightMessage('Checking petition access...');
+
+            try {
+                const response = await apiGetWithMeta(`/api/groups/${petitionGroupId}/petitions/preflight`);
+                if (cancelled) return;
+
+                if (response.ok && response.status === 200 && response.data?.ok) {
+                    setPetitionPreflightState('ok');
+                    setPetitionPreflightMessage('');
+                    return;
+                }
+
+                const traceId = response?.traceId || response?.data?.traceId;
+                const details = traceId
+                    ? ` (traceId: ${traceId})`
+                    : '';
+                const errorMessage = response?.data?.error || 'Unable to verify petition access.';
+                setPetitionPreflightState('error');
+                setPetitionPreflightMessage(`${errorMessage}${details}`);
+            } catch (error) {
+                if (cancelled) return;
+                setPetitionPreflightState('error');
+                setPetitionPreflightMessage('Unable to verify petition access. Please retry.');
+            }
+        };
+
+        runPreflight();
+        return () => {
+            cancelled = true;
+        };
+    }, [mode, petitionGroupId]);
 
     const handleSubmit = async () => {
         const trimmedTitle = title.trim();
@@ -65,6 +116,21 @@ export default function EventSidebar({
             return;
         }
 
+        if (mode === 'petition' && petitionPreflightState === 'loading') {
+            alert('Still checking petition access. Please wait.');
+            return;
+        }
+
+        if (mode === 'petition' && petitionPreflightState === 'error') {
+            alert(petitionPreflightMessage || 'Petition access check failed. Please retry.');
+            return;
+        }
+
+        if (mode === 'petition' && petitionPreflightState !== 'ok') {
+            alert('Petition access is not verified yet.');
+            return;
+        }
+
         try {
             setIsSubmitting(true);
 
@@ -77,7 +143,9 @@ export default function EventSidebar({
                 });
 
                 if (createMeta.status !== 201) {
-                    const msg = createMeta?.data?.error || 'Failed to create petition.';
+                    const traceId = createMeta?.traceId || createMeta?.data?.traceId;
+                    const traceText = traceId ? ` (traceId: ${traceId})` : '';
+                    const msg = (createMeta?.data?.error || 'Failed to create petition.') + traceText;
                     alert(msg);
                     return;
                 }
@@ -128,6 +196,19 @@ export default function EventSidebar({
         }
     };
 
+    const petitionBlocked =
+        mode === 'petition' && (
+            petitionPreflightState === 'loading' ||
+            petitionPreflightState === 'error' ||
+            !petitionGroupId
+        );
+    const submitDisabled = isSubmitting || petitionBlocked;
+    const submitLabel = isSubmitting
+        ? 'Saving...'
+        : (mode === 'petition' && petitionPreflightState === 'loading')
+            ? 'Checking Access...'
+            : 'Finalize Event';
+
     return (
         <div className="event-sidebar-container">
             <h2>Create Event</h2>
@@ -173,6 +254,9 @@ export default function EventSidebar({
                             </option>
                         ))}
                     </select>
+                    <p className={`preflight-message ${petitionPreflightState === 'error' ? 'preflight-error' : ''}`}>
+                        {petitionPreflightMessage}
+                    </p>
                 </>
             )}
             <br />
@@ -196,8 +280,8 @@ export default function EventSidebar({
                     <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
                     <br />
-            <button className="submit-btn" onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Finalize Event'}
+            <button className="submit-btn" onClick={handleSubmit} disabled={submitDisabled}>
+                {submitLabel}
             </button>
         </div>
     );

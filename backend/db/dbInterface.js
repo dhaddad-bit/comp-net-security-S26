@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Pool } = require('pg');
 
 require('dotenv').config({
@@ -26,6 +28,12 @@ const testConnection = async () => {
         timestamp: result.rows[0].now,
         message: "Database connected successfully!"
     };
+};
+
+const ensurePetitionSchema = async() => {
+    const schemaPath = path.resolve(__dirname, '..', '..', 'db', '001_petitions_schema.sql');
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schemaSql);
 };
 
 
@@ -702,6 +710,7 @@ module.exports = {
     pool,
     query: (text, params) => pool.query(text,params),
     testConnection,
+    ensurePetitionSchema,
     getUsersWithName,
     getUserByID,
     getNameByID,

@@ -1,10 +1,41 @@
-function sendApiError(res, status, message, extra = {}) {
-  return res.status(status).json({ error: message, ...extra });
+const crypto = require("crypto");
+
+function ensureTraceId(res) {
+  if (!res.locals.traceId) {
+    res.locals.traceId = crypto.randomUUID();
+    res.setHeader("X-Trace-Id", res.locals.traceId);
+  }
+  return res.locals.traceId;
+}
+
+function withTraceId(req, res, next) {
+  ensureTraceId(res);
+  next();
+}
+
+function sendApiError(req, res, status, message, extra = {}) {
+  const traceId = ensureTraceId(res);
+  return res.status(status).json({ error: message, traceId, ...extra });
+}
+
+function logRouteError(req, res, stage, error, extra = {}) {
+  const traceId = ensureTraceId(res);
+  console.error("[PetitionRoutes]", {
+    traceId,
+    stage,
+    method: req.method,
+    path: req.originalUrl,
+    userId: req.userId ?? null,
+    groupId: req.groupId ?? null,
+    petitionId: req.params?.petitionId ?? null,
+    errorMessage: error?.message || String(error),
+    ...extra
+  });
 }
 
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.userId || !req.session.isAuthenticated) {
-    return sendApiError(res, 401, "Unauthorized");
+    return sendApiError(req, res, 401, "Unauthorized");
   }
 
   req.userId = Number(req.session.userId);
@@ -15,25 +46,25 @@ function requireGroupMember(db) {
   return async function requireGroupMemberMiddleware(req, res, next) {
     const groupId = Number(req.params.groupId);
     if (!Number.isInteger(groupId) || groupId <= 0) {
-      return sendApiError(res, 400, "Invalid groupId");
+      return sendApiError(req, res, 400, "Invalid groupId");
     }
 
     try {
       const group = await db.getGroupById(groupId);
       if (!group) {
-        return sendApiError(res, 404, "Group not found");
+        return sendApiError(req, res, 404, "Group not found");
       }
 
       const inGroup = await db.isUserInGroup(req.userId, groupId);
       if (!inGroup) {
-        return sendApiError(res, 403, "Forbidden");
+        return sendApiError(req, res, 403, "Forbidden");
       }
 
       req.groupId = groupId;
       return next();
     } catch (error) {
-      console.error("requireGroupMember error:", error);
-      return sendApiError(res, 500, "Internal Server Error");
+      logRouteError(req, res, "requireGroupMember", error);
+      return sendApiError(req, res, 500, "Internal Server Error");
     }
   };
 }
@@ -80,7 +111,15 @@ function decoratePetitionForUser(petition, userId) {
 }
 
 module.exports = function registerPetitionRoutes(app, { db }) {
-  app.post("/api/groups/:groupId/petitions", requireAuth, requireGroupMember(db), async (req, res) => {
+  app.get("/api/groups/:groupId/petitions/preflight", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
+    return res.status(200).json({
+      ok: true,
+      groupId: req.groupId,
+      userId: req.userId
+    });
+  });
+
+  app.post("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const startMs = parseEpochMs(req.body?.start);
       const endMs = parseEpochMs(req.body?.end);
@@ -88,16 +127,16 @@ module.exports = function registerPetitionRoutes(app, { db }) {
       const blockingLevel = normalizeBlockingLevel(req.body?.blocking_level ?? req.body?.blockingLevel ?? "B2");
 
       if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
-        return sendApiError(res, 400, "start and end are required");
+        return sendApiError(req, res, 400, "start and end are required");
       }
       if (endMs <= startMs) {
-        return sendApiError(res, 400, "end must be greater than start");
+        return sendApiError(req, res, 400, "end must be greater than start");
       }
       if (!title) {
-        return sendApiError(res, 400, "title is required");
+        return sendApiError(req, res, 400, "title is required");
       }
       if (!blockingLevel) {
-        return sendApiError(res, 400, "blocking_level must be B1, B2, or B3");
+        return sendApiError(req, res, 400, "blocking_level must be B1, B2, or B3");
       }
 
       const petition = await db.createPetition({
@@ -111,12 +150,12 @@ module.exports = function registerPetitionRoutes(app, { db }) {
 
       return res.status(201).json(decoratePetitionForUser(petition, req.userId));
     } catch (error) {
-      console.error("create petition error:", error);
-      return sendApiError(res, error.status || 500, error.message || "Failed to create petition");
+      logRouteError(req, res, "createPetition", error);
+      return sendApiError(req, res, error.status || 500, error.message || "Failed to create petition");
     }
   });
 
-  app.get("/api/groups/:groupId/petitions", requireAuth, requireGroupMember(db), async (req, res) => {
+  app.get("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const petitions = await db.listGroupPetitions({
         groupId: req.groupId,
@@ -128,12 +167,12 @@ module.exports = function registerPetitionRoutes(app, { db }) {
           : []
       );
     } catch (error) {
-      console.error("list group petitions error:", error);
-      return sendApiError(res, 500, "Failed to list group petitions");
+      logRouteError(req, res, "listGroupPetitions", error);
+      return sendApiError(req, res, 500, "Failed to list group petitions");
     }
   });
 
-  app.get("/api/petitions", requireAuth, async (req, res) => {
+  app.get("/api/petitions", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitions = await db.listUserPetitions({ userId: req.userId });
       return res.status(200).json(
@@ -142,21 +181,21 @@ module.exports = function registerPetitionRoutes(app, { db }) {
           : []
       );
     } catch (error) {
-      console.error("list user petitions error:", error);
-      return sendApiError(res, 500, "Failed to list user petitions");
+      logRouteError(req, res, "listUserPetitions", error);
+      return sendApiError(req, res, 500, "Failed to list user petitions");
     }
   });
 
-  app.post("/api/petitions/:petitionId/respond", requireAuth, async (req, res) => {
+  app.post("/api/petitions/:petitionId/respond", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);
       if (!Number.isInteger(petitionId) || petitionId <= 0) {
-        return sendApiError(res, 400, "Invalid petitionId");
+        return sendApiError(req, res, 400, "Invalid petitionId");
       }
 
       const response = normalizeResponse(req.body?.response);
       if (!response) {
-        return sendApiError(res, 400, "response must be ACCEPT or DECLINE");
+        return sendApiError(req, res, 400, "response must be ACCEPT or DECLINE");
       }
 
       const petition = await db.respondToPetition({
@@ -167,16 +206,16 @@ module.exports = function registerPetitionRoutes(app, { db }) {
 
       return res.status(200).json(decoratePetitionForUser(petition, req.userId));
     } catch (error) {
-      console.error("respond to petition error:", error);
-      return sendApiError(res, error.status || 500, error.message || "Failed to respond to petition");
+      logRouteError(req, res, "respondToPetition", error);
+      return sendApiError(req, res, error.status || 500, error.message || "Failed to respond to petition");
     }
   });
 
-  app.delete("/api/petitions/:petitionId", requireAuth, async (req, res) => {
+  app.delete("/api/petitions/:petitionId", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);
       if (!Number.isInteger(petitionId) || petitionId <= 0) {
-        return sendApiError(res, 400, "Invalid petitionId");
+        return sendApiError(req, res, 400, "Invalid petitionId");
       }
 
       const result = await db.deletePetitionByCreator({
@@ -186,8 +225,8 @@ module.exports = function registerPetitionRoutes(app, { db }) {
 
       return res.status(200).json(result);
     } catch (error) {
-      console.error("delete petition error:", error);
-      return sendApiError(res, error.status || 500, error.message || "Failed to delete petition");
+      logRouteError(req, res, "deletePetition", error);
+      return sendApiError(req, res, error.status || 500, error.message || "Failed to delete petition");
     }
   });
 };
