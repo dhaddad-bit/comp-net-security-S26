@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiGet } from '../../api'; // Adjust path based on your folder structure
+import { apiGet, apiPost } from '../../api'; // Adjust path based on your folder structure
+import PetitionActionModal from '../Petitions/PetitionActionModal';
 import '../../css/calendar.css';
 
 // --- HELPER LOGIC (The "Business Logic" or Model Helpers) ---
@@ -17,6 +18,159 @@ function isCurrentWeek(date) {
   return date.getTime() === currWeekStart.getTime();
 }
 
+function EventClickModal({ event, onClose, onRefresh }) {
+  const [newPriority, setNewPriority] = useState(event.priority || 1);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await apiPost('/api/change-blocking-lvl', {
+        event_id: event.id,
+        priority: parseInt(newPriority, 10)
+      });
+      onRefresh();
+      onClose();
+    } catch (error) {
+      console.error("Failed to update priority", error);
+      alert("Failed to update blocking level.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${event.title}"?`);
+    if (!confirmDelete) return;
+
+    setIsSaving(true);
+    try {
+      await apiPost('/api/delete-event', { event_id: event.id });
+      onRefresh();
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete event", error);
+      alert("Failed to delete the event.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '350px' }}>
+        <h2 style={{ marginTop: 0 }}>{event.title}</h2>
+        <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
+        <p><strong>End:</strong> {event.end.toLocaleString()}</p>
+        <p><strong>Priority:</strong> {event.priority.toLocaleString()}</p>
+
+        <div style={{ margin: '15px 0' }}>
+          <label><strong>Blocking Level:</strong></label>
+          <select
+            value={newPriority}
+            onChange={(e) => setNewPriority(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          >
+            <option value={1}>Low (Optional)</option>
+            <option value={2}>Medium (Flexible)</option>
+            <option value={3}>High (Immovable)</option>
+          </select>
+        </div>
+
+        <div className="modal-actions">
+          <button
+            onClick={handleDelete}
+            disabled={isSaving}
+            style={{
+              backgroundColor: '#d63031',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Delete Event
+          </button>
+          <button onClick={onClose} disabled={isSaving}>
+            Cancel
+          </button>
+          <button className="primary-btn" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
+  if (!petition) return null;
+
+  const petitionGroupId = Number(petition.group_id ?? petition.groupId);
+  const petitionId = Number(petition.petition_id ?? petition.petitionId ?? petition.id);
+
+  const startValue = petition.start_time ?? petition.start ?? petition.startMs;
+  const endValue = petition.end_time ?? petition.end ?? petition.endMs;
+  const startDate = typeof startValue === 'number'
+    ? new Date(startValue)
+    : new Date(Date.parse(startValue));
+  const endDate = typeof endValue === 'number'
+    ? new Date(endValue)
+    : new Date(Date.parse(endValue));
+
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
+
+  if (activeGroupId && Number(activeGroupId) !== petitionGroupId) {
+    return null;
+  }
+
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = weekStartMs + (7 * 24 * 60 * 60 * 1000);
+  if (endMs <= weekStartMs || startMs >= weekEndMs) {
+    return null;
+  }
+
+  const acceptedCount = Number(petition.accepted_count ?? petition.acceptedCount ?? 0);
+  const declinedCount = Number(petition.declined_count ?? petition.declinedCount ?? 0);
+  const groupSize = Number(petition.group_size ?? petition.groupSize ?? 0);
+
+  const computedStatus =
+    declinedCount > 0
+      ? 'FAILED'
+      : (groupSize > 0 && acceptedCount === groupSize)
+        ? 'ACCEPTED_ALL'
+        : 'OPEN';
+  const status = typeof petition.status === 'string' && petition.status.trim()
+    ? petition.status
+    : computedStatus;
+  const titleRaw = petition.title || 'Petition';
+
+  return {
+    event_id: `petition-${petitionId}`,
+    mode: 'petition',
+    petitionId,
+    groupId: petitionGroupId,
+    createdByUserId: Number(petition.created_by_user_id ?? petition.createdByUserId ?? null),
+    title: titleRaw,
+    titleRaw,
+    start: petition.start_time ?? petition.start ?? petition.startMs,
+    end: petition.end_time ?? petition.end ?? petition.endMs,
+    start_time: petition.start_time ?? petition.start ?? petition.startMs,
+    end_time: petition.end_time ?? petition.end ?? petition.endMs,
+    acceptedCount,
+    declinedCount,
+    groupSize,
+    currentUserResponse: petition.current_user_response ?? petition.currentUserResponse ?? null,
+    status,
+    groupName: petition.group_name ?? petition.groupName ?? '',
+    is_creator: typeof petition.is_creator === 'boolean' ? petition.is_creator : null,
+    isCreator: typeof petition.is_creator === 'boolean' ? petition.is_creator : null
+  };
+}
+
 
 export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) {
   // --- STATE (The "Controller" Data) ---
@@ -24,6 +178,20 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
   const [rawEvents, setRawEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupAvailability, setGroupAvailability] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [visiblePetitions, setVisiblePetitions] = useState([]);
+  const [selectedPetition, setSelectedPetition] = useState(null);
+  const [isPetitionModalOpen, setIsPetitionModalOpen] = useState(false);
+  const [petitionActionRefreshKey, setPetitionActionRefreshKey] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const petitionDraftActive = draftEvent?.mode === 'petition';
+
+  const refreshPersonalEvents = async () => {
+    const personalEvents = await apiGet('/api/get-events');
+    if (Array.isArray(personalEvents)) {
+      setRawEvents(personalEvents);
+    }
+  };
 
   // --- EFFECT 1: Fetch Personal Events ---
 
@@ -116,6 +284,66 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
     fetchGroupEvents();
   }, [refreshTrigger, groupId, weekStart]);
 
+  useEffect(() => {
+    const fetchCurrentUser = async() => {
+      try {
+        const response = await apiGet('/api/me');
+        const userId = response?.user?.user_id;
+        setCurrentUserId(userId != null ? Number(userId) : null);
+      } catch (error) {
+        console.error('Failed to load current user for petition actions:', error);
+        setCurrentUserId(null);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchVisiblePetitions = async() => {
+      const endpoint = groupId ? `/api/groups/${groupId}/petitions` : '/api/petitions';
+
+      try {
+        const response = await apiGet(endpoint);
+        if (!Array.isArray(response)) {
+          setVisiblePetitions([]);
+          return;
+        }
+
+        const mappedPetitions = response
+          .map((petition) => mapPetitionToCalendarEvent(petition, groupId, weekStart))
+          .filter(Boolean);
+
+        setVisiblePetitions(mappedPetitions);
+      } catch (error) {
+        console.error('Failed to fetch petitions:', error);
+        setVisiblePetitions([]);
+      }
+    };
+
+    fetchVisiblePetitions();
+  }, [groupId, weekStart, petitionActionRefreshKey, petitionDraftActive]);
+
+  const handlePetitionClick = (petitionEvent) => {
+    setSelectedPetition(petitionEvent);
+    setIsPetitionModalOpen(true);
+  };
+
+  const handleClosePetitionModal = () => {
+    setIsPetitionModalOpen(false);
+    setSelectedPetition(null);
+  };
+
+  const handlePetitionActionComplete = () => {
+    setIsPetitionModalOpen(false);
+    setSelectedPetition(null);
+    setPetitionActionRefreshKey((v) => v + 1);
+  };
+
+  const handleRegularEventActionComplete = () => {
+    refreshPersonalEvents();
+  };
+
   const handlePrevWeek = () => {
     const newDate = new Date(weekStart);
     newDate.setDate(newDate.getDate() - 7);
@@ -137,7 +365,8 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
   // --- PREPARING THE VIEW ---
   const events = processEvents(finalRawEvents);
   const groupEvents = processEvents(groupAvailability);
-  const allEvents = events.concat(groupEvents);
+  const petitionEvents = processEvents(visiblePetitions);
+  const allEvents = events.concat(groupEvents, petitionEvents);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -145,6 +374,33 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
     return d;
   });
   const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  const getPetitionStatusClass = (event) => {
+    if (event.mode !== 'petition') return '';
+
+    switch (event.status) {
+      case 'FAILED':
+        return 'petition-failed';
+      case 'ACCEPTED_ALL':
+        return 'petition-accepted-all';
+      default:
+        return 'petition-open';
+    }
+  };
+
+  const getDisplayTitle = (event) => {
+    if (event.mode !== 'petition') {
+      return event.title;
+    }
+
+    const baseTitle = event.titleRaw || event.title || 'Petition';
+    if (groupId) {
+      return baseTitle;
+    }
+
+    const groupLabel = event.groupName || (event.groupId ? `Group ${event.groupId}` : '');
+    return groupLabel ? `${groupLabel}: ${baseTitle}` : baseTitle;
+  };
 
   return (
     <div id="calendar-container">
@@ -199,7 +455,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
                       case 'petition':
                         backgroundColor = '#ffa963';
                         opacity = 0.6;
-                        zIndex = 2;
+                        zIndex = 3;
                         break;
                       case 'blocking':
                         backgroundColor = '#34333c';
@@ -211,28 +467,41 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
                         const calculatedLightness = Math.max(35, 90 - (event.availLvl * 12));
                         backgroundColor = `hsl(145, 65%, ${calculatedLightness}%)`;
                         opacity = 0.5;
-                        zIndex = 4
+                        zIndex = 3;
                         break;
                       default:
                         backgroundColor = '#6395ee';
                         opacity = 1;
                         zIndex = 3;
                     }
+                    const isRegularEventClickable = event.mode !== 'avail' && event.mode !== 'petition' && !event.isPreview;
+                    // TEAMNOTE[event-editing]: Restore legacy regular-event click/edit flow removed during petition rewiring.
+                    const handleEventClick = () => {
+                      if (event.mode === 'petition') {
+                        handlePetitionClick(event);
+                        return;
+                      }
+                      if (isRegularEventClickable) {
+                        setSelectedEvent(event);
+                      }
+                    };
                     return (
                       <div
                         key={idx}
-                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''}`}
+                        className={`calendar-event ${event.isAllDay ? 'all-day-event' : ''} ${event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : ''}`}
+                        onClick={(event.mode === 'petition' || isRegularEventClickable) ? handleEventClick : undefined}
                         style={{
                           height: `${Math.max(1, visualHeight)}px`,
                           top: `${startMins}px`,
                           opacity: event.isAllDay ? 0.6 : opacity,
                           zIndex: event.isAllDay ? 1 :zIndex,
                           backgroundColor: backgroundColor,
-                          border: event.isPreview ? '2px dashed #333' : 'none'
+                          border: event.isPreview ? '2px dashed #333' : 'none',
+                          cursor: (event.mode === 'petition' || isRegularEventClickable) ? 'pointer' : 'default'
                           
                         }}
                       >
-                        {event.title}
+                        {getDisplayTitle(event)}
                       </div>
                     );
                   })}
@@ -242,6 +511,20 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
         ))}
       </div>
       {loading && <p>Loading events...</p>}
+      {selectedEvent && (
+        <EventClickModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onRefresh={handleRegularEventActionComplete}
+        />
+      )}
+      <PetitionActionModal
+        open={isPetitionModalOpen}
+        petition={selectedPetition}
+        currentUserId={currentUserId}
+        onClose={handleClosePetitionModal}
+        onActionComplete={handlePetitionActionComplete}
+      />
     </div>
   );
 }
@@ -269,11 +552,27 @@ function processEvents(rawEvents) {
         start: new Date(current),
         end: new Date(effectiveEnd),
         id: event.event_id,
+        event_id: event.event_id,
         isAllDay: (effectiveEnd - current) >= 24 * 60 * 60 * 1000,
         isEndOfDay: effectiveEnd.getTime() === nextDayStart.getTime(),
         isPreview: event.isPreview || false,
         availLvl: event.availLvl || 0, // for group availability heatmap
         mode: event.mode || 'normal', // 'normal', 'blocking', 'petition', 'avail'
+        priority: event.priority || 1,
+        petitionId: event.petitionId ?? null,
+        groupId: event.groupId ?? null,
+        createdByUserId: event.createdByUserId ?? null,
+        titleRaw: event.titleRaw ?? event.title,
+        start_time: event.start_time ?? event.start,
+        end_time: event.end_time ?? event.end,
+        acceptedCount: event.acceptedCount ?? 0,
+        declinedCount: event.declinedCount ?? 0,
+        groupSize: event.groupSize ?? 0,
+        currentUserResponse: event.currentUserResponse ?? null,
+        status: event.status ?? null,
+        groupName: event.groupName ?? '',
+        is_creator: typeof event.is_creator === 'boolean' ? event.is_creator : null,
+        isCreator: typeof event.isCreator === 'boolean' ? event.isCreator : null,
         // isAvail: event.isAvail || false
       });
       current = nextDayStart;
