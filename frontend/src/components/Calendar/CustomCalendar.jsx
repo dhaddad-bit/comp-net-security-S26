@@ -121,15 +121,13 @@ function EventClickModal({ event, onClose, onRefresh }) {
   );
 }
 
-export default function CustomCalendar({ groupId, draftEvent }) {
+export default function CustomCalendar({ groupId, draftEvent, refreshTrigger }) {
   // --- STATE (The "Controller" Data) ---
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date()));
   const [rawEvents, setRawEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupAvailability, setGroupAvailability] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
-
-  // const [displayMode, setDisplayMode] = useState("personal");
 
   const refreshPersonalEvents = async () => {
     const personalEvents = await apiGet('/api/get-events');
@@ -174,8 +172,7 @@ export default function CustomCalendar({ groupId, draftEvent }) {
     };
     
     fetchPersonalEvents();
-    // setDisplayMode("personal");
-  }, [weekStart]); 
+  }, [weekStart, refreshTrigger]); 
 
   // --- EFFECT 2: Fetch Group Availability ---
 
@@ -235,8 +232,7 @@ export default function CustomCalendar({ groupId, draftEvent }) {
     };
     
     fetchGroupEvents();
-    // setDisplayMode("avail");
-  }, [groupId, weekStart]);
+  }, [groupId, weekStart, refreshTrigger]);
 
   const handlePrevWeek = () => {
     const newDate = new Date(weekStart);
@@ -332,15 +328,15 @@ export default function CustomCalendar({ groupId, draftEvent }) {
                         // backgroundColor = '#2ecc71';
                         const calculatedLightness = Math.max(35, 90 - (event.availLvl * 12));
                         backgroundColor = `hsl(145, 65%, ${calculatedLightness}%)`;
-                        opacity = 0.5;
+                        opacity = 0.9;
                         zIndex = 4
                         break;
                       default:
-                        // backgroundColor = (displayMode == "personal") ? '#6395ee' : '#a6c0ee';
                         backgroundColor = '#6395ee';
                         opacity = 1;
                         zIndex = 3;
                     }
+                    if (!event.isPreview && event.id.startsWith("manual-")) backgroundColor = '#6f6e76';
 
                     const isClickable = event.mode !== 'avail' && event.mode !== 'petition' && !event.isPreview;
 

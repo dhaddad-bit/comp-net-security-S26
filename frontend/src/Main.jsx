@@ -20,7 +20,8 @@ export default function Main() {
 
     // live draft preview of event being created/edited.
     const [draftEvent, setDraftEvent] = useState(null);
-  
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     // 1. Move fetchGroups INSIDE so it can see setGroupsList
     const [eventMode, setEventMode] = useState('blocking');
     const [petitionGroupId, setPetitionGroupId] = useState('');
@@ -190,7 +191,11 @@ export default function Main() {
 
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
-                    <Calendar draftEvent={draftEvent} groupId={selectedGroupId}/>
+                    <Calendar 
+                        draftEvent={draftEvent} 
+                        groupId={selectedGroupId}
+                        refreshTrigger={refreshTrigger}
+                    />
                 </section>
 
                 {/* The Event sidebar, which is used for both creating and editing events. */}
@@ -206,8 +211,7 @@ export default function Main() {
                             onFinalize={() => {
                                 setIsEventSidebarOpen(false);
                                 setDraftEvent(null);
-                                // trigger a calendar refresh here
-                                <Calendar draftEvent={draftEvent} selectedGroupId={selectedGroupId}/>
+                                setRefreshTrigger(prev => prev + 1);
                             }}
                         />
                     </aside>
