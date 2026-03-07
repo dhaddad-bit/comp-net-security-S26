@@ -1,7 +1,39 @@
+#calendar-container {
+  display: flex;
+  flex-direction: column;
+
+  height: calc(100vh - 80px); 
+  width: 100%;
+
+  background-color: white; /* Or your preferred background */
+  border-radius: 8px;      /* Optional: rounds the outer corners */
+  overflow: hidden;
+}
+
+.calendar-header {
+  flex-shrink: 0; /* Prevents the header from getting squished when the grid gets big */
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f8f9fa; 
+  /* ... keep your existing flex/justify-content rules here ... */
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: 80px repeat(7, 1fr);
   width: 100%;
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.corner-cell {
+  position: sticky;
+  top: 0;
+  z-index: 20; /* Keep it above the events AND the time labels */
+  background-color: white; /* MUST be solid so events don't show through */
+  border-bottom: 1px solid #ddd; /* Adds a nice dividing line */
 }
 
 .calendar-cell {
@@ -29,6 +61,11 @@
 .day-header {
   text-align: center;
   font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 15; /* High enough to cover events (which are z-index 1-4) */
+  background-color: white; /* MUST be solid, or the scrolling events will mix with the text! */
+  border-bottom: 1px solid #ddd;
 }
 
 .time-label {
