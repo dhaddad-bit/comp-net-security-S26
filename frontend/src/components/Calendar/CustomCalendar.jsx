@@ -239,7 +239,7 @@ function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
 }
 
 
-export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) {
+export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, isMobileLayout = false }) {
   // --- STATE (The "Controller" Data) ---
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date()));
   const [rawEvents, setRawEvents] = useState([]);
@@ -258,6 +258,8 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
     ? (availabilityViewByGroup[selectedGroupKey] || DEFAULT_GROUP_VIEW)
     : DEFAULT_GROUP_VIEW;
   const latestAvailabilityRequestRef = useRef(0);
+  const calendarScrollRef = useRef(null);
+  const lastAutoScrollWeekRef = useRef(null);
 
   const refreshPersonalEvents = async () => {
     const personalEvents = await apiGet('/api/get-events');
@@ -534,6 +536,40 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
     return groupLabel ? `${groupLabel}: ${baseTitle}` : baseTitle;
   };
 
+  useEffect(() => {
+    if (!isMobileLayout) {
+      lastAutoScrollWeekRef.current = null;
+      return undefined;
+    }
+
+    const scrollContainer = calendarScrollRef.current;
+    if (!scrollContainer) {
+      return undefined;
+    }
+
+    const weekKey = weekStart.toISOString();
+    if (lastAutoScrollWeekRef.current === weekKey) {
+      return undefined;
+    }
+
+    const scrollNearSevenAm = () => {
+      const targetTop = 7 * 60;
+      if (typeof scrollContainer.scrollTo === 'function') {
+        scrollContainer.scrollTo({
+          top: targetTop,
+          left: scrollContainer.scrollLeft || 0,
+          behavior: 'auto'
+        });
+      } else {
+        scrollContainer.scrollTop = targetTop;
+      }
+      lastAutoScrollWeekRef.current = weekKey;
+    };
+
+    scrollNearSevenAm();
+    return undefined;
+  }, [isMobileLayout, weekStart]);
+
   return (
     <div id="calendar-container">
       {/* 1. CALENDAR HEADER (Navigation) */}
@@ -585,116 +621,118 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
       ) : null}
 
       {/* 2. CALENDAR GRID (View) */}
-      <div className="calendar-grid">
-        <div className="corner-cell"></div>
-        {days.map((day, i) => (
-          <div key={i} className="day-header">
-            {day.toLocaleDateString("default", { weekday: "short", month: "numeric", day: "numeric" })}
-          </div>
-        ))}
-
-        {hours.map(hour => (
-          <React.Fragment key={hour}>
-            <div className="time-label">
-              {`${hour === 0 || hour === 12 ? 12 : hour % 12}:00${hour < 12 ? 'am' : 'pm'}`}
+      <div className="calendar-grid-scroll" ref={calendarScrollRef}>
+        <div className="calendar-grid">
+          <div className="corner-cell"></div>
+          {days.map((day, i) => (
+            <div key={i} className="day-header">
+              {day.toLocaleDateString("default", { weekday: "short", month: "numeric", day: "numeric" })}
             </div>
+          ))}
 
-            {days.map((day, i) => (
-              <div key={i} className="calendar-cell">
-                {allEvents
-                  .filter(e => e.start.toDateString() === day.toDateString() && e.start.getHours() === hour)
-                  .map((event, idx) => {
-                    // --- hides 0 avail events
-                    if (event.mode === 'avail' && event.availLvl === 0) {
-                      // Don't render 0-availability blocks, they just add clutter
-                      return null;
-                    }
-
-                    const startMins = event.start.getMinutes();
-                    const duration = (event.end - event.start) / (1000 * 60);
-
-                    // precise visual logic
-                    // each grid line (hour) subtracts 2px to height, so add duration/30
-                    let visualHeight = (duration / 30) + duration - 10; // -10 to add padding between events 
-                    const endsOnHour = event.end.getMinutes() === 0 && event.end.getSeconds() === 0;
-                    if (!event.isEndOfDay && !endsOnHour) visualHeight -= 2;
-
-                    let backgroundColor;
-                    let textColor;
-                    let opacity;
-                    let zIndex;
-
-                    if (event.mode === 'petition') {
-                      backgroundColor = '#ffa963';
-                      opacity = 0.6;
-                      zIndex = 4;
-                    } else if (event.mode === 'avail') {
-                      backgroundColor = getAvailabilityColor(event.availLvl);
-                      opacity = 0.9;
-                      zIndex = 3;
-                    } else {
-                      const normalizedBlockingLevel = normalizeBlockingLevelFromEvent(event);
-                      const isAboveAvailability = shouldRenderRegularEventAboveAvailability(
-                        effectiveAvailabilityView,
-                        normalizedBlockingLevel
-                      );
-                      zIndex = isAboveAvailability ? 4 : 2;
-                      opacity = event.mode === 'blocking' ? 0.6 : 1;
-
-                      backgroundColor = event.backgroundColor
-                        || (typeof event.color === 'string' ? event.color : null)
-                        || (event.mode === 'blocking' ? '#34333c' : '#6395ee');
-                      textColor = event.backgroundColor && typeof event.color === 'string' ? event.color : undefined;
-                    }
-                    if (!event.isPreview && typeof event.id === 'string' && event.id.startsWith('manual-')) {
-                      backgroundColor = '#6f6e76';
-                    }
-
-                    const borderStyle = event.isPreview
-                      ? '2px dashed #333'
-                      : (typeof event.borderColor === 'string' && event.borderColor ? `1px solid ${event.borderColor}` : 'none');
-                    const combinedClassName = [
-                      'calendar-event',
-                      event.isAllDay ? 'all-day-event' : '',
-                      event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : '',
-                      event.className || ''
-                    ].filter(Boolean).join(' ');
-                    const isRegularEventClickable = event.mode !== 'avail' && event.mode !== 'petition' && !event.isPreview;
-                    // TEAMNOTE[event-editing]: Restore legacy regular-event click/edit flow removed during petition rewiring.
-                    const handleEventClick = () => {
-                      if (event.mode === 'petition') {
-                        handlePetitionClick(event);
-                        return;
-                      }
-                      if (isRegularEventClickable) {
-                        setSelectedEvent(event);
-                      }
-                    };
-                    return (
-                      <div
-                        key={idx}
-                        className={combinedClassName}
-                        onClick={(event.mode === 'petition' || isRegularEventClickable) ? handleEventClick : undefined}
-                        style={{
-                          height: `${Math.max(1, visualHeight)}px`,
-                          top: `${startMins}px`,
-                          opacity: event.isAllDay ? 0.6 : opacity,
-                          zIndex: event.isAllDay ? 1 :zIndex,
-                          backgroundColor: backgroundColor,
-                          color: textColor,
-                          border: borderStyle,
-                          cursor: (event.mode === 'petition' || isRegularEventClickable) ? 'pointer' : 'default'
-                          
-                        }}
-                      >
-                        {event.mode === 'avail' ? null : getDisplayTitle(event)}
-                      </div>
-                    );
-                  })}
+          {hours.map(hour => (
+            <React.Fragment key={hour}>
+              <div className="time-label">
+                {`${hour === 0 || hour === 12 ? 12 : hour % 12}:00${hour < 12 ? 'am' : 'pm'}`}
               </div>
-            ))}
-          </React.Fragment>
-        ))}
+
+              {days.map((day, i) => (
+                <div key={i} className="calendar-cell">
+                  {allEvents
+                    .filter(e => e.start.toDateString() === day.toDateString() && e.start.getHours() === hour)
+                    .map((event, idx) => {
+                      // --- hides 0 avail events
+                      if (event.mode === 'avail' && event.availLvl === 0) {
+                        // Don't render 0-availability blocks, they just add clutter
+                        return null;
+                      }
+
+                      const startMins = event.start.getMinutes();
+                      const duration = (event.end - event.start) / (1000 * 60);
+
+                      // precise visual logic
+                      // each grid line (hour) subtracts 2px to height, so add duration/30
+                      let visualHeight = (duration / 30) + duration - 10; // -10 to add padding between events 
+                      const endsOnHour = event.end.getMinutes() === 0 && event.end.getSeconds() === 0;
+                      if (!event.isEndOfDay && !endsOnHour) visualHeight -= 2;
+
+                      let backgroundColor;
+                      let textColor;
+                      let opacity;
+                      let zIndex;
+
+                      if (event.mode === 'petition') {
+                        backgroundColor = '#ffa963';
+                        opacity = 0.6;
+                        zIndex = 4;
+                      } else if (event.mode === 'avail') {
+                        backgroundColor = getAvailabilityColor(event.availLvl);
+                        opacity = 0.9;
+                        zIndex = 3;
+                      } else {
+                        const normalizedBlockingLevel = normalizeBlockingLevelFromEvent(event);
+                        const isAboveAvailability = shouldRenderRegularEventAboveAvailability(
+                          effectiveAvailabilityView,
+                          normalizedBlockingLevel
+                        );
+                        zIndex = isAboveAvailability ? 4 : 2;
+                        opacity = event.mode === 'blocking' ? 0.6 : 1;
+
+                        backgroundColor = event.backgroundColor
+                          || (typeof event.color === 'string' ? event.color : null)
+                          || (event.mode === 'blocking' ? '#34333c' : '#6395ee');
+                        textColor = event.backgroundColor && typeof event.color === 'string' ? event.color : undefined;
+                      }
+                      if (!event.isPreview && typeof event.id === 'string' && event.id.startsWith('manual-')) {
+                        backgroundColor = '#6f6e76';
+                      }
+
+                      const borderStyle = event.isPreview
+                        ? '2px dashed #333'
+                        : (typeof event.borderColor === 'string' && event.borderColor ? `1px solid ${event.borderColor}` : 'none');
+                      const combinedClassName = [
+                        'calendar-event',
+                        event.isAllDay ? 'all-day-event' : '',
+                        event.mode === 'petition' ? `petition-event ${getPetitionStatusClass(event)}` : '',
+                        event.className || ''
+                      ].filter(Boolean).join(' ');
+                      const isRegularEventClickable = event.mode !== 'avail' && event.mode !== 'petition' && !event.isPreview;
+                      // TEAMNOTE[event-editing]: Restore legacy regular-event click/edit flow removed during petition rewiring.
+                      const handleEventClick = () => {
+                        if (event.mode === 'petition') {
+                          handlePetitionClick(event);
+                          return;
+                        }
+                        if (isRegularEventClickable) {
+                          setSelectedEvent(event);
+                        }
+                      };
+                      return (
+                        <div
+                          key={idx}
+                          className={combinedClassName}
+                          onClick={(event.mode === 'petition' || isRegularEventClickable) ? handleEventClick : undefined}
+                          style={{
+                            height: `${Math.max(1, visualHeight)}px`,
+                            top: `${startMins}px`,
+                            opacity: event.isAllDay ? 0.6 : opacity,
+                            zIndex: event.isAllDay ? 1 :zIndex,
+                            backgroundColor: backgroundColor,
+                            color: textColor,
+                            border: borderStyle,
+                            cursor: (event.mode === 'petition' || isRegularEventClickable) ? 'pointer' : 'default'
+
+                          }}
+                        >
+                          {event.mode === 'avail' ? null : getDisplayTitle(event)}
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
       {loading && <p>Loading events...</p>}
       {selectedEvent && (

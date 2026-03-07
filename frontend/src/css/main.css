@@ -14,52 +14,57 @@ darkgray: #34333c
 gray: #6f6e76
 lightgray: #e5e5e5
 background: #f4f5f7
-
 */
 
+:root {
+  --sidebar-width-desktop: clamp(320px, 28vw, 380px);
+  --mobile-groups-sidebar-width: min(92vw, 380px);
+  --mobile-event-sidebar-width: min(92vw, 420px);
+}
+
 body {
+  margin: 0;
   font-family: 'Courier New', Courier, monospace;
   background-color: #f4f5f7;
 }
 
 header {
   display: flex;
-  justify-content: center; /* Centers  horizontally */
-  align-items: center;     /* Centers  vertically */
-  gap: 20px;               /* Adds equal space between elements */
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
   padding: 10px;
   min-height: 60px;
 }
 
-/* 2. Shared button styles */
 button {
   padding: 10px 20px;
-  background-color:#e5e5e5;
+  background-color: #e5e5e5;
   font-size: 20px;
-  border:none;
+  border: none;
   border-radius: 5px;
-  cursor: pointer;         /* Changes the mouse to a hand icon */
-  transition: opacity 0.3s; /* Smooth effect for hovering */
+  cursor: pointer;
+  transition: opacity 0.3s;
   font-family: 'Courier New', Courier, monospace;
 }
 
-/* 3. Distinct colors for each button */
+button:hover {
+  opacity: 0.8;
+}
+
+#groupsBtn,
+#eventBtn {
+  width: clamp(220px, 37vw, 450px);
+  min-width: 220px;
+  color: white;
+}
+
 #groupsBtn {
   background-color: #3498db;
-  color: white;
-  /* width:100% */
-  width: 37%;
-  min-width: 300px;
-  max-width: 450px;
 }
 
 #eventBtn {
   background-color: #2ecc71;
-  color: white;
-  /* width:100% */
-  width: 37%;
-  min-width: 300px;
-  max-width: 450px;
 }
 
 #eventBtn:active {
@@ -68,6 +73,10 @@ button {
 
 #groupsBtn:active {
   background-color: #2a7ab0;
+}
+
+.active-btn {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
 }
 
 #manButtons {
@@ -81,65 +90,220 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-button:hover {
-  opacity: 0.8;
+  gap: 12px;
+  padding: 0 10px 10px;
 }
 
 #beta {
   color: cornflowerblue;
-  font-weight:bolder;
+  font-weight: bolder;
   font-size: 24px;
   margin-left: 10px;
 }
 
 #logo {
-  color:darkslategray;
-  font-weight:bolder;
+  color: darkslategray;
+  font-weight: bolder;
   font-size: 40px;
 }
 
 #app-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Takes full viewport height */
-  overflow: hidden; /* Prevents whole page from scrolling, delegates scrolling to children */
+  height: 100vh;
+  overflow: hidden;
 }
 
 .main-layout {
+  position: relative;
   display: flex;
-  flex-grow: 1; /* Takes up remaining height below header */
-  overflow: hidden; /* Contains the scrollable children */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.groups-sidebar,
+.event-sidebar {
+  width: var(--sidebar-width-desktop);
+  min-width: var(--sidebar-width-desktop);
+  max-width: var(--sidebar-width-desktop);
+  flex: 0 0 var(--sidebar-width-desktop);
+  background-color: #f4f5f7;
+  overflow-y: auto;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .groups-sidebar {
-  width: 35%;
-  min-width: 300px;
-  max-width: 400px;
-  background-color: #f4f5f7;
   border-right: 1px solid #ccc;
-  overflow-y: auto; /* Allows scrolling if group list gets long */
-  padding: 10px;
-  flex-shrink: 0; /* Prevents sidebar from shrinking too much */
-  transition: width 0.3s ease; /* Optional animation if you switch to CSS-based toggling */
 }
 
 .event-sidebar {
-  width: 35%;
-  min-width: 300px;
-  max-width: 400px;
-  background-color: #f4f5f7;
-  border-right: 1px solid #ccc;
-  overflow-y: auto; /* Allows scrolling if group list gets long */
-  padding: 10px;
-  flex-shrink: 0; /* Prevents sidebar from shrinking too much */
-  transition: width 0.3s ease; /* Optional animation if you switch to CSS-based toggling */
+  border-left: 1px solid #ccc;
 }
 
 .calendar-main {
-  flex-grow: 1; /* Takes up all remaining width */
-  overflow-y: auto; /* Allows calendar to scroll independently */
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   padding: 10px;
   background-color: #f4f4f4;
+}
+
+.mobile-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+}
+
+.mobile-sidebar {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: none;
+  background-color: #f4f5f7;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+
+.groups-sidebar-mobile {
+  width: var(--mobile-groups-sidebar-width);
+}
+
+.event-sidebar-mobile {
+  width: var(--mobile-event-sidebar-width);
+  margin-left: auto;
+}
+
+.mobile-sidebar-close {
+  display: block;
+  width: 100%;
+  border-radius: 0;
+  background: #34333c;
+  color: #fff;
+  font-size: 0.95rem;
+  padding: 12px 16px;
+}
+
+.mobile-create-trigger {
+  display: none;
+}
+
+.mobile-create-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1750;
+  background: rgba(0, 0, 0, 0.38);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.mobile-create-sheet {
+  width: min(520px, 100%);
+  background-color: #fff;
+  border-radius: 14px 14px 0 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.mobile-create-sheet-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #34333c;
+}
+
+.mobile-create-action,
+.mobile-create-cancel {
+  width: 100%;
+  font-size: 1rem;
+  padding: 12px;
+}
+
+.mobile-create-event {
+  background-color: #2ecc71;
+  color: #fff;
+}
+
+.mobile-create-petition {
+  background-color: #ffa963;
+  color: #fff;
+}
+
+.mobile-create-cancel {
+  background-color: #e5e5e5;
+  color: #34333c;
+}
+
+@media (max-width: 900px) {
+  #manButtons {
+    justify-content: space-between;
+  }
+
+  #manButtons button {
+    font-size: 1rem;
+    padding: 8px 12px;
+  }
+
+  header {
+    gap: 10px;
+    min-height: 52px;
+  }
+
+  #logo {
+    font-size: 30px;
+  }
+
+  #beta {
+    font-size: 20px;
+  }
+
+  #sidebarToggle {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  #groupsBtn,
+  #eventBtn {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    font-size: 1rem;
+    padding: 10px 14px;
+  }
+
+  #eventBtn {
+    display: none;
+  }
+
+  .calendar-main {
+    padding: 10px;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-create-trigger {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 1700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #00b894;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 12px 18px;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  }
 }

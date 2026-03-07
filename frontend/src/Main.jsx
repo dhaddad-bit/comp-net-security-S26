@@ -6,16 +6,27 @@ import EventSidebar from './components/Calendar/EventSidebar';
 import './css/main.css';
 import {apiGet, apiPost} from './api';
 
+const MOBILE_BREAKPOINT_QUERY = '(max-width: 900px)';
+
 export default function Main() {
+    const getInitialMobileLayout = () => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return false;
+        }
+        return window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
+    };
+
     const [selectedGroupId, setSelectedGroupId] = useState(null);
     const [groupsList, setGroupsList] = useState([]); 
 
     // refresh signals
     const [groupsRefreshSignal, setGroupsRefreshSignal] = useState(0);
     const [calRefreshSignal, setCalRefreshSignal] = useState(0);
+    const [isMobileLayout, setIsMobileLayout] = useState(getInitialMobileLayout);
     
     const [isGroupsSidebarOpen, setIsGroupsSidebarOpen] = useState(false);
     const [isEventSidebarOpen, setIsEventSidebarOpen] = useState(false);
+    const [isMobileCreateMenuOpen, setIsMobileCreateMenuOpen] = useState(false);
     const [pendingInvite, setPendingInvite] = useState(null);
     const [inviteActionLoading, setInviteActionLoading] = useState(false);
     const [inviteError, setInviteError] = useState('');
@@ -85,6 +96,38 @@ export default function Main() {
         fetchPendingInvite();
     }, []);
 
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return undefined;
+        }
+
+        const mediaQueryList = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+        const handleMediaQueryChange = (event) => {
+            setIsMobileLayout(event.matches);
+        };
+
+        setIsMobileLayout(mediaQueryList.matches);
+        if (typeof mediaQueryList.addEventListener === 'function') {
+            mediaQueryList.addEventListener('change', handleMediaQueryChange);
+            return () => mediaQueryList.removeEventListener('change', handleMediaQueryChange);
+        }
+
+        mediaQueryList.addListener(handleMediaQueryChange);
+        return () => mediaQueryList.removeListener(handleMediaQueryChange);
+    }, []);
+
+    useEffect(() => {
+        if (!isMobileLayout) {
+            setIsMobileCreateMenuOpen(false);
+        }
+    }, [isMobileLayout]);
+
+    useEffect(() => {
+        if (isGroupsSidebarOpen || isEventSidebarOpen) {
+            setIsMobileCreateMenuOpen(false);
+        }
+    }, [isGroupsSidebarOpen, isEventSidebarOpen]);
+
     // Toggle the sidebar open/closed
     const toggleGroupsSidebar = () => {
         setIsGroupsSidebarOpen(!isGroupsSidebarOpen);
@@ -120,6 +163,7 @@ export default function Main() {
         setSelectedGroupId(Number(groupId));
         setEventMode('petition');
         setPetitionGroupId(groupId);
+        setIsMobileCreateMenuOpen(false);
         setIsGroupsSidebarOpen(false); // Close groups sidebar
         setIsEventSidebarOpen(true);   // Open event sidebar
     };
@@ -128,6 +172,21 @@ export default function Main() {
         await apiGet("/api/events");
         setCalRefreshSignal(prev => prev + 1);
     }
+
+    const handleMobileCreateSelection = (targetMode) => {
+        if (targetMode === 'petition') {
+            const petitionTarget = selectedGroupId == null ? '' : String(selectedGroupId);
+            setEventMode('petition');
+            setPetitionGroupId(petitionTarget);
+        } else {
+            setEventMode('blocking');
+            setPetitionGroupId('');
+        }
+
+        setIsGroupsSidebarOpen(false);
+        setIsEventSidebarOpen(true);
+        setIsMobileCreateMenuOpen(false);
+    };
 
 
     // displays two buttons that will bring up either Calendar or Group
@@ -158,6 +217,7 @@ export default function Main() {
                 <button 
                     onClick={() => {
                         toggleGroupsSidebar();
+                        setIsMobileCreateMenuOpen(false);
                         if (isEventSidebarOpen) setIsEventSidebarOpen(false);
                     }} 
                     id="groupsBtn"
@@ -169,6 +229,7 @@ export default function Main() {
                 <button 
                     onClick={() => {
                         toggleEventSidebar();
+                        setIsMobileCreateMenuOpen(false);
                         if (!isEventSidebarOpen) {
                             setEventMode('blocking');
                             setPetitionGroupId('');
@@ -185,7 +246,7 @@ export default function Main() {
 
             <main className="main-layout">
                 {/* The Groups sidebar. */}
-                {isGroupsSidebarOpen && (
+                {!isMobileLayout && isGroupsSidebarOpen && (
                     <aside className="groups-sidebar">
                         <Groups
                             selectedGroupId={selectedGroupId}
@@ -198,11 +259,16 @@ export default function Main() {
 
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
-                    <Calendar refreshTrigger={calRefreshSignal} draftEvent={draftEvent} groupId={selectedGroupId}/>
+                    <Calendar
+                        refreshTrigger={calRefreshSignal}
+                        draftEvent={draftEvent}
+                        groupId={selectedGroupId}
+                        isMobileLayout={isMobileLayout}
+                    />
                 </section>
 
                 {/* The Event sidebar, which is used for both creating and editing events. */}
-                {isEventSidebarOpen && (
+                {!isMobileLayout && isEventSidebarOpen && (
                     <aside className="event-sidebar">
                         <EventSidebar 
                             setDraftEvent={setDraftEvent}
@@ -222,6 +288,112 @@ export default function Main() {
                 )}
 
             </main>
+
+            {isMobileLayout && isGroupsSidebarOpen && (
+                <div
+                    className="mobile-sidebar-backdrop"
+                    onClick={() => setIsGroupsSidebarOpen(false)}
+                >
+                    <aside
+                        className="groups-sidebar mobile-sidebar groups-sidebar-mobile"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            className="mobile-sidebar-close"
+                            onClick={() => setIsGroupsSidebarOpen(false)}
+                        >
+                            Close
+                        </button>
+                        <Groups
+                            selectedGroupId={selectedGroupId}
+                            onSelectGroup={(id) => setSelectedGroupId(id == null ? null : Number(id))}
+                            onOpenPetition={handleOpenPetition}
+                            refreshSignal={groupsRefreshSignal}
+                        />
+                    </aside>
+                </div>
+            )}
+
+            {isMobileLayout && isEventSidebarOpen && (
+                <div
+                    className="mobile-sidebar-backdrop"
+                    onClick={() => setIsEventSidebarOpen(false)}
+                >
+                    <aside
+                        className="event-sidebar mobile-sidebar event-sidebar-mobile"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            className="mobile-sidebar-close"
+                            onClick={() => setIsEventSidebarOpen(false)}
+                        >
+                            Close
+                        </button>
+                        <EventSidebar
+                            setDraftEvent={setDraftEvent}
+                            mode={eventMode}
+                            setMode={setEventMode}
+                            petitionGroupId={petitionGroupId}
+                            setPetitionGroupId={setPetitionGroupId}
+                            groupsList={groupsList}
+                            onFinalize={() => {
+                                setIsEventSidebarOpen(false);
+                                setDraftEvent(null);
+                                setCalRefreshSignal((prev) => prev + 1);
+                            }}
+                        />
+                    </aside>
+                </div>
+            )}
+
+            {isMobileLayout && (
+                <>
+                    <button
+                        type="button"
+                        className="mobile-create-trigger"
+                        aria-expanded={isMobileCreateMenuOpen}
+                        onClick={() => setIsMobileCreateMenuOpen((isOpen) => !isOpen)}
+                    >
+                        Create
+                    </button>
+                    {isMobileCreateMenuOpen && (
+                        <div
+                            className="mobile-create-sheet-backdrop"
+                            onClick={() => setIsMobileCreateMenuOpen(false)}
+                        >
+                            <div
+                                className="mobile-create-sheet"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <p className="mobile-create-sheet-title">Create</p>
+                                <button
+                                    type="button"
+                                    className="mobile-create-action mobile-create-event"
+                                    onClick={() => handleMobileCreateSelection('blocking')}
+                                >
+                                    Create Event
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mobile-create-action mobile-create-petition"
+                                    onClick={() => handleMobileCreateSelection('petition')}
+                                >
+                                    Create Petition
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mobile-create-cancel"
+                                    onClick={() => setIsMobileCreateMenuOpen(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
         </div>
     );
 }

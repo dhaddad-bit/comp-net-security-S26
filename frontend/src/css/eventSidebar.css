@@ -1,22 +1,43 @@
 .event-sidebar-container {
-  align-items: center;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 20px;
   background-color: #f4f5f7;
   border-left: 1px solid #e5e5e5;
 }
 
+.event-sidebar-container h2 {
+  margin: 0 0 6px;
+}
+
 .mode-toggle {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.mode-toggle-btn {
+  width: 100%;
+  border-radius: 8px;
+  font-size: 1rem;
+  padding: 10px 14px;
+  opacity: 0.78;
+}
+
+.mode-toggle-btn-active {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
 }
 
 .event-sidebar-container label {
-  margin-right: 10px;
   font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
 }
 
 #blockingBtn {
@@ -29,20 +50,51 @@
   color: white;
 }
 
+.event-form-field {
+  width: 100%;
+}
+
+.event-form-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+  padding: 9px 10px;
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
 .submit-btn {
-    background-color: #00b894;
-    color: white;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px;
+  font-size: 1rem;
+  background-color: #00b894;
+  color: white;
 }
 
 .priority-select-dropdown {
-  margin-top: 6px;
-  margin-bottom: 8px;
-  min-width: 180px;
+  min-width: 0;
+}
+
+.event-time-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-time-entry .event-form-input {
+  flex: 1 1 0;
+}
+
+.event-time-separator {
+  color: #4b5563;
+  font-weight: 700;
 }
 
 .preflight-message {
-  min-height: 18px;
-  margin: 6px 0 4px;
+  min-height: 20px;
+  margin: 6px 0 0;
   font-size: 0.82rem;
   color: #4b5563;
 }
@@ -50,4 +102,16 @@
 .preflight-error {
   color: #b42318;
   font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .event-sidebar-container {
+    border-left: none;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .mode-toggle-btn {
+    font-size: 0.95rem;
+    padding: 11px 12px;
+  }
 }

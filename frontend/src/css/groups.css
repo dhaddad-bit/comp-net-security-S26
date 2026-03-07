@@ -11,8 +11,9 @@
 /* The Individual Group Row */
 .group-row {
   display: flex;
-  align-items: center; /* Vertically center text and buttons */
-  justify-content: space-between; /* Pushes name to left, buttons to right */
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
   background-color: white;
   padding: 15px 20px;
   margin-bottom: 10px;
@@ -26,35 +27,45 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* The Group Name text */
-.group-row span {
+.group-row-name {
   font-weight: 600;
   color: #2d3436;
   font-size: 1.1rem;
+  line-height: 1.25;
+  flex: 1 1 auto;
 }
 
-/* Button Container (to keep buttons together on the right) */
-.group-row div {
+.group-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Space between View and Leave buttons */
+  align-items: stretch;
+  gap: 8px;
+  width: 170px;
+  max-width: 100%;
   border-radius: 6px;
-  overflow: hidden; /* This makes the corners look like one unit */
-
+  overflow: hidden;
 }
 
 button:active {
   transform: scale(0.98);
 }
 
-
-/* Create Group Button (at the top) */
-#groups > button {
+.groups-create-btn {
   background-color: #00b894;
   color: white;
   margin-bottom: 20px;
   width: 100%;
   font-size: 1rem;
+  padding: 12px;
+}
+
+.group-action-btn {
+  width: 100%;
+  display: block;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  text-align: center;
 }
 
 #leaveBtn {
@@ -76,12 +87,23 @@ button:active {
   color: white;
 }
 
-#petitonBtn {
+#petitionBtn {
   background-color: #fd79a8;
   color: white;
 }
 
 .group-row {
   font-weight: bold;
-  font-size: 20px;
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .group-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .group-actions {
+    width: 100%;
+  }
 }

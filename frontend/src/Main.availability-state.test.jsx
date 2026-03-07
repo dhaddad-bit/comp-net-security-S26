@@ -14,9 +14,10 @@ jest.mock('./components/Groups/PendingInviteModal', () => function PendingInvite
   return null;
 });
 
-jest.mock('./components/Calendar/EventSidebar', () => function EventSidebarMock({ petitionGroupId }) {
+jest.mock('./components/Calendar/EventSidebar', () => function EventSidebarMock({ petitionGroupId, mode }) {
   return (
     <div data-testid="event-sidebar">
+      <div data-testid="event-sidebar-mode">{mode || 'none'}</div>
       <div data-testid="event-sidebar-petition-group-id">{petitionGroupId == null || petitionGroupId === '' ? 'none' : String(petitionGroupId)}</div>
     </div>
   );
@@ -48,6 +49,23 @@ function findButton(container, label) {
   return buttons.find((button) => button.textContent && button.textContent.includes(label));
 }
 
+function installMatchMedia(matches) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn()
+    }))
+  });
+}
+
 describe('Main availability selection state', () => {
   let container;
   let root;
@@ -61,6 +79,8 @@ describe('Main availability selection state', () => {
   });
 
   beforeEach(() => {
+    installMatchMedia(false);
+
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -156,5 +176,76 @@ describe('Main availability selection state', () => {
 
     expect(container.querySelector('[data-testid="calendar-group-id"]').textContent).toBe('9');
     expect(container.querySelector('[data-testid="event-sidebar-petition-group-id"]').textContent).toBe('9');
+  });
+
+  test('mobile layout keeps selected group state through overlay open and close cycles', async () => {
+    installMatchMedia(true);
+
+    await act(async () => {
+      root.render(<Main />);
+    });
+    await flushEffects();
+
+    await act(async () => {
+      findButton(container, 'Show Groups').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Select Group 7').click();
+    });
+    expect(container.querySelector('[data-testid="calendar-group-id"]').textContent).toBe('7');
+
+    await act(async () => {
+      findButton(container, 'Hide Groups').click();
+    });
+    expect(container.querySelector('[data-testid="calendar-group-id"]').textContent).toBe('7');
+
+    await act(async () => {
+      findButton(container, 'Show Groups').click();
+    });
+    expect(container.querySelector('[data-testid="calendar-group-id"]').textContent).toBe('7');
+  });
+
+  test('mobile create controls open event sidebar in petition and blocking modes', async () => {
+    installMatchMedia(true);
+
+    await act(async () => {
+      root.render(<Main />);
+    });
+    await flushEffects();
+
+    await act(async () => {
+      findButton(container, 'Show Groups').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Select Group 7').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Hide Groups').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Create').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Create Petition').click();
+    });
+
+    expect(container.querySelector('[data-testid="event-sidebar-mode"]').textContent).toBe('petition');
+    expect(container.querySelector('[data-testid="event-sidebar-petition-group-id"]').textContent).toBe('7');
+
+    await act(async () => {
+      findButton(container, 'Create').click();
+    });
+
+    await act(async () => {
+      findButton(container, 'Create Event').click();
+    });
+
+    expect(container.querySelector('[data-testid="event-sidebar-mode"]').textContent).toBe('blocking');
+    expect(container.querySelector('[data-testid="event-sidebar-petition-group-id"]').textContent).toBe('none');
   });
 });

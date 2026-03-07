@@ -212,40 +212,45 @@ export default function EventSidebar({
     return (
         <div className="event-sidebar-container">
             <h2>Create Event</h2>
-            
-            {/* Mode Toggle */}
-            <div className="mode-toggle">
-                <button id="blockingBtn"
-                        style={{
-                          transform: mode === 'blocking' ? 'scale(1.1)' : 'scale(1)',
-                          zIndex: mode === 'blocking' ? 1 : 0
 
-                        }}
+            <div className="mode-toggle" role="group" aria-label="Event mode">
+                <button
+                    id="blockingBtn"
+                    type="button"
+                    className={`mode-toggle-btn ${mode === 'blocking' ? 'mode-toggle-btn-active' : ''}`}
                     onClick={() => setMode('blocking')}
                 >
                     Blocking
                 </button>
-                <button id="petitionBtn" 
-                    style={{
-                      transform: mode === 'petition' ? 'scale(1.1)' : 'scale(1)',
-                      zIndex: mode === 'petition' ? 1 : 0
-                    }}
+                <button
+                    id="petitionBtn"
+                    type="button"
+                    className={`mode-toggle-btn ${mode === 'petition' ? 'mode-toggle-btn-active' : ''}`}
                     onClick={() => setMode('petition')}
                 >
                     Petition
                 </button>
             </div>
 
-            <label>Event Name</label>
-            <input type="text" value={title} onChange={e => setTitle(e.target.value)} />
-                    <br />
+            <div className="event-form-field">
+                <label htmlFor="eventTitle">Event Name</label>
+                <input
+                    id="eventTitle"
+                    className="event-form-input"
+                    type="text"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                />
+            </div>
+
             {mode === 'petition' && (
-                <>
-                    <label>Select Group</label>
+                <div className="event-form-field">
+                    <label htmlFor="petitionGroup">Select Group</label>
                     <select 
+                        id="petitionGroup"
                         value={petitionGroupId} 
                         onChange={(e) => setPetitionGroupId(e.target.value)}
-                        className="group-select-dropdown"
+                        className="event-form-input group-select-dropdown"
                     >
                         <option value="">-- Choose a Group --</option>
                         {groupsList.map(group => (
@@ -257,30 +262,54 @@ export default function EventSidebar({
                     <p className={`preflight-message ${petitionPreflightState === 'error' ? 'preflight-error' : ''}`}>
                         {petitionPreflightMessage}
                     </p>
-                </>
+                </div>
             )}
-            <br />
-            <label>Priority</label>
-            <select
-                value={selectedBlockingLevel}
-                onChange={(e) => setSelectedBlockingLevel(e.target.value)}
-                className="priority-select-dropdown"
-            >
-                <option value="B1">Soft (B1)</option>
-                <option value="B2">Important (B2)</option>
-                <option value="B3">Hard (B3)</option>
-            </select>
-            <br />
-            <label>Date & Time</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-                    <br />
-            <div id="timeEntry">
-                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-                    <span style={{ margin: '0 5px' }}> - </span>
-                    <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+
+            <div className="event-form-field">
+                <label htmlFor="eventPriority">Priority</label>
+                <select
+                    id="eventPriority"
+                    value={selectedBlockingLevel}
+                    onChange={(e) => setSelectedBlockingLevel(e.target.value)}
+                    className="event-form-input priority-select-dropdown"
+                >
+                    <option value="B1">Soft (B1)</option>
+                    <option value="B2">Important (B2)</option>
+                    <option value="B3">Hard (B3)</option>
+                </select>
             </div>
-                    <br />
-            <button className="submit-btn" onClick={handleSubmit} disabled={submitDisabled}>
+
+            <div className="event-form-field">
+                <label htmlFor="eventDate">Date</label>
+                <input
+                    id="eventDate"
+                    className="event-form-input"
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                />
+            </div>
+
+            <div className="event-form-field">
+                <label>Time</label>
+                <div id="timeEntry" className="event-time-entry">
+                    <input
+                        className="event-form-input"
+                        type="time"
+                        value={startTime}
+                        onChange={e => setStartTime(e.target.value)}
+                    />
+                    <span className="event-time-separator">-</span>
+                    <input
+                        className="event-form-input"
+                        type="time"
+                        value={endTime}
+                        onChange={e => setEndTime(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <button type="button" className="submit-btn" onClick={handleSubmit} disabled={submitDisabled}>
                 {submitLabel}
             </button>
         </div>

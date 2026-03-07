@@ -63,7 +63,7 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
         <section id="groups">
             <h2>My Groups</h2>
 
-            <button onClick={() => setShowModal(true)}>
+            <button type="button" className="groups-create-btn" onClick={() => setShowModal(true)}>
                 + Create New Group
             </button>
 
@@ -73,11 +73,13 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
                 const isActive = Number(selectedGroupId) === Number(group.group_id);
                 return (
                 <div key={group.group_id} className="group-row">
-                    <span>{group.group_name}</span>
+                    <span className="group-row-name">{group.group_name}</span>
                     
-                    <div>
+                    <div className="group-actions">
                         <button 
+                            type="button"
                             id="infoBtn" 
+                            className="group-action-btn"
                             onClick={() => {
                                 setInfoModalGroup(group);
                             }}
@@ -86,8 +88,9 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
                         </button>
 
                         <button 
+                            type="button"
                             id="viewBtn" 
-                            className={isActive ? 'active-view-btn' : ''}
+                            className={`group-action-btn ${isActive ? 'active-view-btn' : ''}`}
                             style={{background: isActive ? '#26aa5d' : '#2ecc71'}}
                             onClick={() => {
                                 if (isActive) {
@@ -101,7 +104,9 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
                         </button>
 
                         <button 
+                            type="button"
                             id="petitionBtn" 
+                            className="group-action-btn"
                             onClick={() => {
                                 console.log("Create petition for group", group.group_id);
                                 onOpenPetition(group.group_id);
@@ -111,7 +116,9 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
                         </button>
 
                         <button 
+                            type="button"
                             id="leaveBtn" 
+                            className="group-action-btn"
                             onClick={() => handleLeaveGroup(group.group_id)}
                         >
                             Leave

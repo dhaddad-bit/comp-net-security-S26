@@ -284,6 +284,24 @@ describe('CustomCalendar availability view switching', () => {
     expect(container.querySelectorAll('.availability-legend-item').length).toBe(2);
   });
 
+  test('auto-scrolls near 7am in mobile layout', async () => {
+    const scrollToMock = jest.fn();
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollToMock;
+
+    try {
+      await act(async () => {
+        root.render(<CustomCalendar groupId={1} draftEvent={null} isMobileLayout />);
+      });
+      await flushMultiple();
+
+      expect(scrollToMock).toHaveBeenCalled();
+      expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 420 }));
+    } finally {
+      HTMLElement.prototype.scrollTo = originalScrollTo;
+    }
+  });
+
   test('stale availability response does not overwrite current group context', async () => {
     const delayedG1 = createDeferred();
     const delayedG2 = createDeferred();
