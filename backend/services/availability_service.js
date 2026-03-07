@@ -50,8 +50,6 @@ const availabilityService = {
 
     // Keep strict-compatible fields while enriching with multi-view data.
     const formattedBlocks = blocks.map((block) => {
-      // The algorithm already computes counts; we just reshape them.
-      // No algorithm contract changes needed here.
       const strictView = normalizeView(block.views && block.views.StrictView ? block.views.StrictView : {});
       const flexibleView = normalizeView(block.views && block.views.FlexibleView ? block.views.FlexibleView : {});
       const lenientView = normalizeView(block.views && block.views.LenientView ? block.views.LenientView : {});
