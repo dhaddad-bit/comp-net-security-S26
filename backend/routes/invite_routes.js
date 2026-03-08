@@ -1,3 +1,5 @@
+const { groupRequest } = require("../emailer.js");
+
 module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteState }) {
   async function getGroupForInvite(groupId) {
     if (typeof db.getGroupById === "function") {
@@ -17,6 +19,24 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
 
     return null;
   }
+
+  // body requires: usernames, sender's username, group_id, sharing_link
+  app.post("/api/group/send_link_over_email", async (req, res) => {
+    try {
+      for (const user of req.body.users) {
+        const user_info = await db.getUserByID(user.user_id);
+        if (user_info && user_info.email) {
+          await groupRequest(user_info.email,
+                            req.body.sender_user,
+                            req.body.shareable_link);
+        }
+      }
+      return res.status(201).json({success: true});
+    } catch (error) {
+      console.error("error inviting over email:", error);
+      return res.status(500).json({error: "failed inviting members"});
+    }
+  });
 
   app.post("/group/invite", async (req, res) => {
     if (!inviteState.isAuthenticated(req)) {
@@ -151,4 +171,5 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
       return res.status(500).json({ error: "Failed to join group" });
     }
   });
+
 };

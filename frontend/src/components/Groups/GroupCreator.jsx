@@ -1,19 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { apiPost, apiPostWithMeta } from '../../api.js';
+import { apiGet, apiPost, apiPostWithMeta } from '../../api.js';
 import '../../css/groupsModal.css';
 import '../../css/groups.css';
+
+function UserSearch({ onUserSelect }) {
+    const [query, setQuery] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (query.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`/api/users/search?q=${query}`);
+                const users = await response.json();
+                setSuggestions(users);
+            } catch (error) {
+                console.error('Search failed:', error);
+            }
+            setIsLoading(false);
+        }, 300); // debounce delay
+
+        return () => clearTimeout(timer);
+    }, [query]);
+
+    return (
+        <div className="user-search">
+        <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search users..."
+        />
+        
+        {suggestions.length > 0 && (
+            <ul className="suggestions">
+                {suggestions.map(user => (
+                    <li 
+                    key={user.id}
+                    onClick={() => {
+                        console.log("clicked", user);
+                        onUserSelect(user);
+                        setQuery('');
+                        setSuggestions([]);
+                    }}
+                    >
+                    {user.username}
+                    </li>
+                ))}
+            </ul>
+        )}
+        
+        {isLoading && <div>Searching...</div>}
+        </div>
+    );
+}
 
 
 export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
     const [groupName, setGroupName] = useState('');
-    // Initialize with one empty string to mimic "addUserRow()" running once at start
-    const [usernames, setUsernames] = useState(['']); 
-
-    // =============================================================================
-    // GrInv: 1.0 Implementing Structural framework for groupInvite, (think this is the right startingpoint)
+    const [usernames, setUsernames] = useState([]);
+    
     const [groupCreated, setGroupCreated] = useState(false);
     const [inviteLink, setInviteLink] = useState("");
-    const [copyStatus, setCopyStatus] = useState("idle"); // "idle", "success", "error"
+    const [copyStatus, setCopyStatus] = useState("idle");
     const [createError, setCreateError] = useState("");
     const [inviteError, setInviteError] = useState("");
 
@@ -22,14 +77,26 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
         if (copyStatus === 'success' || copyStatus === 'error') {
             timeoutId = setTimeout(() => {
                 setCopyStatus('idle');
-            }, 2000); // Reset status after 2 seconds -- also allows for cutoff if close modal
+            }, 2000);
         }
         return () => {
             if (timeoutId) clearTimeout(timeoutId);
         };
     }, [copyStatus]);
 
-    // async ClipBoard Function
+    const handleUserSelect = (user) => {
+        console.log('usernames:', usernames);
+        // Add user if not already in the list
+        if (!usernames.some(u => u.user_id === user.user_id)) {
+            console.log("i am setting usernames.", user, usernames);
+            setUsernames([...usernames, user]);
+        }
+    };
+
+    const removeUser = (userId) => {
+        setUsernames(usernames.filter(u => u.id !== userId));
+    };
+
     const handleCopyClick = async () => {
         if (!inviteLink) {
             setCopyStatus("error");
@@ -44,22 +111,6 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
             console.error("Failed to copy!", err);
             setCopyStatus("error");
         }
-    };
-    // =============================================================================
-    // Handle changing a specific username input
-    const handleUserChange = (index, value) => {
-        const newUsernames = [...usernames];
-        newUsernames[index] = value;
-        setUsernames(newUsernames);
-    };
-
-    // Add a new empty slot
-    const addUserSlot = () => { setUsernames([...usernames, '']); };
-
-    // Remove a slot
-    const removeUserSlot = (index) => {
-        const newUsernames = usernames.filter((_, i) => i !== index);
-        setUsernames(newUsernames);
     };
 
     const handleCreate = async () => {
@@ -87,15 +138,21 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
                     onGroupCreated();
                 }
 
-                // ---- GrInv: 1.1 Matching backend structure before changing it ----
                 try {
                     const inviteResponse = await apiPost("/group/invite", {
                         group_id: newGroupId
                     });
 
                     if (inviteResponse.invite) {
-                        // Update the state with the real url
                         setInviteLink(inviteResponse.invite);
+                        const me = await apiGet('/api/me');
+                        console.log("i am ", me.user.username);
+                        const username = me.user.username;
+                        await apiPost("/api/group/send_link_over_email", {
+                            users: usernames,
+                            sender_user: username,
+                            shareable_link: inviteResponse.invite
+                        });
                         setInviteError("");
                     } else {
                         setInviteError("Group created, but invite link was not returned.");
@@ -120,104 +177,92 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
     return (
         <div className="modal-overlay">
             <div className="modal-content">
-                {/* ----- GrInv: 1.0 Conditional Rendering for Invite Link Generation ----- */}
-
                 {!groupCreated ? (
                     <>
-                        {/* ---- ORIGINAL VIEW: Group Creation Form (Unchanged) ----- */}      
-                    <h2>Create New Group</h2>
+                        <h2>Create New Group</h2>
 
-                    <label>Group Name:</label>
-                    <input
-                        type="text"
-                        placeholder="Enter group name..."
-                        className="group-name-input"
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                    />
-
-                    <label>Add Users:</label>
-                    <div id="users-container">
-                        {usernames.map((user, index) => (
-                            <div key={index} className="user-row">
-                                <input
-                                    type="text"
-                                    placeholder="Enter username"
-                                    className="user-input"
-                                    value={user}
-                                    onChange={(e) => handleUserChange(index, e.target.value)}
-                                />
-                                <button 
-                                    className="remove-user-btn" 
-                                    onClick={() => removeUserSlot(index)}
-                                >
-                                    remove
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <button className="add-slot-btn" onClick={addUserSlot}>
-                        + Add another user
-                    </button>
-
-                    {createError && (
-                        <p style={{ color: 'red', fontSize: '0.85rem', marginTop: '12px' }}>
-                            {createError}
-                        </p>
-                    )}
-
-                    <div className="modal-actions">
-                        <button onClick={onClose}>Cancel</button>
-                        <button className="primary-btn" onClick={handleCreate}>
-                            Create Group!
-                        </button>
-                    </div>
-                </>
-            ) : (
-                <> 
-                    {/* ----- GrInv: 1.0 Adding Necessary Return for Invite Link Generation ----- */}
-                    <h2>Group Created!</h2>
-                    <p>Share this link to invite others to <strong>{groupName}</strong>:</p>
-
-                    <div className="invite-link-container" style={{ display: 'flex', gap: '10px', margin: '20px 0' }}>
+                        <label>Group Name:</label>
                         <input
                             type="text"
-                            value={inviteLink}
-                            placeholder={inviteError ? "Invite link unavailable." : ""}
-                            readOnly
-                            style={{ flex: 1, padding: '8px' }}
+                            placeholder="Enter group name..."
+                            className="group-name-input"
+                            value={groupName}
+                            onChange={(e) => setGroupName(e.target.value)}
                         />
-                        <button
-                            onClick={handleCopyClick}
-                            disabled={!inviteLink || copyStatus === 'copying'}
-                        >
-                            {copyStatus === 'success' ? 'Copied!' : 
-                            copyStatus === 'error' ? 'Error' : 'Copy'}
-                        </button>
-                    </div>
 
-                    {inviteError && (
-                        <p style={{ color: 'red', fontSize: '0.85rem' }}>
-                            {inviteError}
-                        </p>
-                    )}
+                        <label>Add Users:</label>
+                        <UserSearch onUserSelect={handleUserSelect} />
+                        {usernames.length > 0 && (
+                            <div id="users-container">
+                                {usernames.map((user) => (
+                                    <div key={user.user_id} className="user-row">
+                                        <span className="user-display">{user.username}</span>
+                                        <button 
+                                            className="remove-user-btn" 
+                                            onClick={() => removeUser(user.user_id)}
+                                        >
+                                            remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                    {copyStatus === 'error' && (
-                        <p style={{ color: 'red', fontSize: '0.85rem' }}>
-                            Failed to copy invite link. Please try copying manually.
-                        </p>
-                    )}
+                        {createError && (
+                            <p style={{ color: 'red', fontSize: '0.85rem', marginTop: '12px' }}>
+                                {createError}
+                            </p>
+                        )}
 
-                    <div className="modal-actions">
-                        {/* Closing the modal only. Group list refresh already happened on 201 success. */}
-                        <button className="primary-btn" onClick={() => (onDone ? onDone() : onClose())}>
-                            Done
-                        </button>
-                    </div>
-                </>
-            )}
+                        <div className="modal-actions">
+                            <button onClick={onClose}>Cancel</button>
+                            <button className="primary-btn" onClick={handleCreate}>
+                                Create Group!
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <> 
+                        <h2>Group Created!</h2>
+                        <p>Share this link to invite others to <strong>{groupName}</strong>:</p>
+
+                        <div className="invite-link-container" style={{ display: 'flex', gap: '10px', margin: '20px 0' }}>
+                            <input
+                                type="text"
+                                value={inviteLink}
+                                placeholder={inviteError ? "Invite link unavailable." : ""}
+                                readOnly
+                                style={{ flex: 1, padding: '8px' }}
+                            />
+                            <button
+                                onClick={handleCopyClick}
+                                disabled={!inviteLink || copyStatus === 'copying'}
+                            >
+                                {copyStatus === 'success' ? 'Copied!' : 
+                                copyStatus === 'error' ? 'Error' : 'Copy'}
+                            </button>
+                        </div>
+
+                        {inviteError && (
+                            <p style={{ color: 'red', fontSize: '0.85rem' }}>
+                                {inviteError}
+                            </p>
+                        )}
+
+                        {copyStatus === 'error' && (
+                            <p style={{ color: 'red', fontSize: '0.85rem' }}>
+                                Failed to copy invite link. Please try copying manually.
+                            </p>
+                        )}
+
+                        <div className="modal-actions">
+                            <button className="primary-btn" onClick={() => (onDone ? onDone() : onClose())}>
+                                Done
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
-    </div>
     );
 }
