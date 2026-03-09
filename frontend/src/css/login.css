@@ -1,10 +1,60 @@
-body {
-  font-family: 'Courier New', Courier, monospace;
-}
-
 header {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;      
+  background: linear-gradient(132deg, rgb(249, 206, 183) 0.00%, rgb(173, 209, 242) 100.00%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 80px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+body {
+  background-image: radial-gradient(circle, rgb(249, 206, 183) 1px, transparent 1px);
+  background-size: 20px 20px;
+  margin-top: 200px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.column {
+  background: #f4f5f7;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #d0d0d0;
+}
+
+.column h3 {
+  text-align: center;
+}
+
+#auth {
+  position: fixed;
+  top: 100px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f4f5f7;
+  height: 120px;
+  z-index: 99;
+}
+
+#loginBtn {
+  flex: 0 2 400px;
+  padding: 15px;
+  font-size: clamp(14px, 4vw, 24px);
 }
