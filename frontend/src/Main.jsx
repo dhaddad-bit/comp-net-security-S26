@@ -205,7 +205,9 @@ export default function Main() {
 
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
-                    <Calendar refreshTrigger={calRefreshSignal} draftEvent={draftEvent} groupId={selectedGroupId}/>
+                    <div className="calendar-home-panel">
+                        <Calendar refreshTrigger={calRefreshSignal} draftEvent={draftEvent} groupId={selectedGroupId}/>
+                    </div>
                 </section>
 
                 {/* The Event sidebar, which is used for both creating and editing events. */}
