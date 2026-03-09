@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { apiGet, apiPost } from '../../api.js';
 import GroupCreatorModal from './GroupCreator.jsx';
 import GroupInfoModal from './GroupInfo.jsx';
+import { ErrorContext } from '../../ErrorContext.jsx';
 import '../../css/groups.css';
 import '../../css/groupsModal.css';
 
@@ -11,6 +12,10 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
     const [loading, setLoading] = useState(true);
     const [infoModalGroup, setInfoModalGroup] = useState(null);
 
+    // error page handling
+    const { setError } = useContext(ErrorContext); 
+
+    const [activeGroupID, setActiveGroupId] = useState(null);
     // Function to fetch groups (replaces the initial apiGet)
     const fetchGroups = async () => {
         setLoading(true);
@@ -24,6 +29,7 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
         } catch (error) {
             console.error("Failed to fetch groups", error);
             setGroups([]);
+            setError(error.message);
         } finally {
             setLoading(false);
         }
@@ -46,6 +52,7 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
             }
         } catch (error) {
             console.error("Failed to leave group", error);
+            setError(error.message);
         }
     };
 

@@ -26,9 +26,11 @@ header {
   display: flex;
   justify-content: center; /* Centers  horizontally */
   align-items: center;     /* Centers  vertically */
-  gap: 20px;               /* Adds equal space between elements */
+  /* gap: clamp(5px, 3vw, 20px);  Gap scales down on mobile */
   padding: 10px;
   min-height: 60px;
+  flex-wrap: wrap;  /* Allows wrapping if needed */
+  overflow-y: hidden;  /* Prevents overflow */
 }
 
 /* 2. Shared button styles */
@@ -104,16 +106,20 @@ button:hover {
 }
 
 #beta {
+  margin:0.5em;
   color: cornflowerblue;
   font-weight:bolder;
-  font-size: 24px;
-  margin-left: 10px;
+  font-size: clamp(14px, 5vw, 24px);  /* Scales from 14px to 24px */
+  /* margin-left: clamp(5px, 2vw, 10px);  Margin also scales */
+  white-space: nowrap;  /* Prevents wrapping */
 }
 
 #logo {
+  margin: 0.5em;
   color:darkslategray;
   font-weight:bolder;
-  font-size: 40px;
+  font-size: clamp(20px, 8vw, 40px);  /* Scales from 20px to 40px */
+  white-space: nowrap;  /* Prevents wrapping */
 }
 
 #app-wrapper {
@@ -174,7 +180,10 @@ button:hover {
 /* --- MOBILE LAYOUT FIX --- */
 /* Target screens smaller than a standard tablet (768px) */
 @media (max-width: 900px) {
-  
+  #beta {
+    display: none;
+  }
+
   .main-layout {
     /* This tells the absolutely positioned sidebars to stick to the edges of this container */
     position: relative; 

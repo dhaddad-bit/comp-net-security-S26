@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet, apiPost } from '../../api'; // Adjust path based on your folder structure
 import PetitionActionModal from '../Petitions/PetitionActionModal';
+import { ErrorContext } from '../../ErrorContext';
 import '../../css/calendar.css';
 
 const AVAILABILITY_VIEWS = ['StrictView', 'FlexibleView', 'LenientView'];
@@ -231,7 +232,15 @@ function EventClickModal({ event, onClose, onRefresh }) {
         <h2 style={{ marginTop: 0 }}>{event.title}</h2>
         <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
         <p><strong>End:</strong> {event.end.toLocaleString()}</p>
-        <p><strong>Priority:</strong> {initialPriority.toLocaleString()}</p>
+        <p><strong>Priority:</strong> {
+          initialPriority.toLocaleString() == 3 ?
+          "High" :
+            initialPriority.toLocaleString() == 2 ?
+            "Med" :
+              initialPriority.toLocaleString() == 1 ?
+              "Low" :
+                initialPriority.toLocaleString()
+        }</p>
 
         <div style={{ margin: '15px 0' }}>
           <label><strong>Blocking Level:</strong></label>
@@ -360,6 +369,9 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
     : DEFAULT_GROUP_VIEW;
   const latestAvailabilityRequestRef = useRef(0);
 
+  // error handling
+  const { setError } = useContext(ErrorContext);
+
   const refreshPersonalEvents = async () => {
     const personalEvents = await apiGet('/api/get-events');
     if (Array.isArray(personalEvents)) {
@@ -391,6 +403,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
       } catch (error) {
         console.error('Failed to fetch personal events:', error);
         setRawEvents([]);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -447,6 +460,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
         }
         console.error('Failed to fetch group availability:', error);
         setRawAvailabilityBlocks([]);
+        setError(error.message);
       } finally {
         if (!isCancelled && latestAvailabilityRequestRef.current === requestId) {
           setLoading(false);
@@ -470,6 +484,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
       } catch (error) {
         console.error('Failed to load current user for petition actions:', error);
         setCurrentUserId(null);
+        setError(error.message);
       }
     };
 
@@ -495,6 +510,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
       } catch (error) {
         console.error('Failed to fetch petitions:', error);
         setVisiblePetitions([]);
+        setError(error.message);
       }
     };
 
