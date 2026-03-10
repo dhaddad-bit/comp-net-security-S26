@@ -20,16 +20,22 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
   const [isSaving, setIsSaving] = useState(false);
   const [inlineError, setInlineError] = useState('');
 
+  // should this apply to duplicate events
+  const [applyToAll, setApplyToAll] = useState(false);
+
   // Fires when the user clicks "Save Changes"
   const handleSave = async () => {
     setInlineError('');
     setIsSaving(true);
     try {
-      // Send the update request to the backend
+      // Send the update request to the backend WITH the new variables!
       await apiPost('/api/change-blocking-lvl', {
         event_id: event.id,
-        priority: parseInt(newPriority, 10)
+        priority: parseInt(newPriority, 10),
+        apply_to_all: applyToAll, // Tell the backend if we are updating duplicates
+        title: event.title        // Send the title to match against
       });
+      
       // Tell the parent calendar to re-fetch the database
       onRefresh();
       // Close this modal
@@ -96,6 +102,22 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
               <option value={3}>High (Immovable)</option>
             </select>
           </div>
+
+          {/* Only show the "Apply to All" option for standard blocking events */}
+          {event.mode === 'normal' && (
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="checkbox" 
+                id="applyToAll" 
+                checked={applyToAll} 
+                onChange={(e) => setApplyToAll(e.target.checked)} 
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="applyToAll" style={{ fontSize: '13px', color: '#4b5563', cursor: 'pointer' }}>
+                Update all my events named <strong>"{event.title}"</strong>
+              </label>
+            </div>
+          )}
 
           {inlineError ? <p className="modal-inline-error">{inlineError}</p> : null}
         </div>

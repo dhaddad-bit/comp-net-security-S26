@@ -616,13 +616,33 @@ app.post("/api/add-events", async (req, res) => {
 
 app.post('/api/change-blocking-lvl', async (req, res) => {
   try {
-    const { event_id, priority } = req.body;
+    // Extract the new variables we added in the frontend
+    const { event_id, priority, apply_to_all, title } = req.body;
+    
+    // Grab the user ID from the session to protect the database
+    const userId = req.session?.userId;
 
-    if (!event_id || priority === undefined) {
-      return res.status(400).json({ error: "Missing event_id or priority" });
+    if (priority === undefined) {
+      return res.status(400).json({ error: "Missing priority" });
     }
-    await db.updateEventPriority(event_id, parseInt(priority, 10));
+
+    if (apply_to_all) {
+      // MULTI-UPDATE MODE
+      if (!userId || !title) {
+        return res.status(400).json({ error: "Missing user session or title for bulk update" });
+      }
+      await db.updateEventPriorityByTitle(userId, title, parseInt(priority, 10));
+      
+    } else {
+      // SINGLE-UPDATE MODE
+      if (!event_id) {
+        return res.status(400).json({ error: "Missing event_id" });
+      }
+      await db.updateEventPriority(event_id, parseInt(priority, 10));
+    }
+
     return res.status(200).json({ success: true, message: "Blocking level updated" });
+    
   } catch (error) {
     console.error("Error updating blocking level:", error);
     return res.status(500).json({ error: "Failed to update blocking level" });

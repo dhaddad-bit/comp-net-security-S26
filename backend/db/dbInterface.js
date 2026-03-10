@@ -196,6 +196,19 @@ const updateEventPriority = async(event_id, priority) => {
     return res.rows[0];
 }
 
+// Updates priority for ALL events with a matching title for a specific user
+const updateEventPriorityByTitle = async (userId, title, priority) => {
+    const query = `
+        UPDATE cal_event
+        SET priority = $1
+        WHERE event_name = $2
+          AND calendar_id IN (SELECT calendar_id FROM calendar WHERE user_id = $3)
+        RETURNING *
+    `;
+    const res = await pool.query(query, [priority, title, userId]);
+    return res.rows; // Returns array of all updated rows
+}
+
 // Deletes an event completely
 const deleteEventByGcalEventId = async(event_id) => {
     const query = `
@@ -815,6 +828,7 @@ module.exports = {
     addCalendar,
     addEvents,
     updateEventPriority,
+    updateEventPriorityByTitle,
     deleteEventByGcalEventId,
     getEventsByCalendarID,
     deleteEventsByIds,
