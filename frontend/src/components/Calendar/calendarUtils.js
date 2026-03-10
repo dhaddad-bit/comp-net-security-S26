@@ -325,3 +325,45 @@ export function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
     status,
   };
 }
+
+// --- Add this to the bottom of calendarUtils.js ---
+
+export function filterAvailabilityAgainstPersonalEvents(projectedAvailability, rawEvents, effectiveAvailabilityView) {
+  if (!projectedAvailability || projectedAvailability.length === 0) return [];
+  if (!rawEvents || rawEvents.length === 0) return projectedAvailability;
+
+  // 1. Extract the exact start and end times of all personal events strong enough to block availability
+  const blockingRanges = rawEvents.reduce((acc, event) => {
+      // Ignore other heatmap blocks or petitions
+      if (event.mode === 'avail' || event.mode === 'petition') return acc;
+      
+      const lvl = normalizeBlockingLevelFromEvent(event);
+      
+      // Check if this event's priority is high enough based on the Strict/Flexible/Lenient toggle
+      if (shouldRenderRegularEventAboveAvailability(effectiveAvailabilityView, lvl)) {
+          const range = normalizeEventRange(event);
+          if (Number.isFinite(range.start.getTime()) && Number.isFinite(range.end.getTime())) {
+              acc.push({ startMs: range.start.getTime(), endMs: range.end.getTime() });
+          }
+      }
+      return acc;
+  }, []);
+
+  // 2. Map over the backend's availability blocks
+  return projectedAvailability.map(block => {
+      if (block.availLvl === 0) return block; // Already empty, skip it
+      
+      const blockStartMs = new Date(block.start).getTime();
+      const blockEndMs = new Date(block.end).getTime();
+      const midpoint = (blockStartMs + blockEndMs) / 2;
+
+      // Check if the midpoint of this 15-minute block falls inside ANY of the user's personal busy times
+      const isBlocked = blockingRanges.some(range => midpoint >= range.startMs && midpoint < range.endMs);
+
+      if (isBlocked) {
+          // If the user is busy, mathematically force the availability block to 0 so it won't render
+          return { ...block, availLvl: 0 };
+      }
+      return block;
+  });
+}

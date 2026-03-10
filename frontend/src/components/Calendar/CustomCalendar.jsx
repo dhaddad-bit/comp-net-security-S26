@@ -20,7 +20,8 @@ import { AVAILABILITY_VIEWS, DEFAULT_GROUP_VIEW, FALLBACK_VIEW, AVAILABILITY_VIE
 import { 
   getStartOfWeek, isCurrentWeek, formatWeekRange, isSameLocalDay, 
   formatAvailabilityTooltip, getViewStatsFromBlock, processEvents, 
-  mergeAvailabilityBlocks, mapPetitionToCalendarEvent, getAvailabilityColor, getAvailabilityOpacity 
+  mergeAvailabilityBlocks, mapPetitionToCalendarEvent, getAvailabilityColor, 
+  getAvailabilityOpacity, filterAvailabilityAgainstPersonalEvents
 } from './calendarUtils';
 
 import CalendarEventBlock from './CalendarEventBlock';
@@ -190,15 +191,24 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
   const finalRawEvents = [...rawEvents];
   if (draftEvent) finalRawEvents.push({ ...draftEvent });
 
-  const hasMultiViewAvailability = rawAvailabilityBlocks.some(b => b && typeof b.views === 'object' && b.views !== null);
+  const hasMultiViewAvailability = rawAvailabilityBlocks.some(
+    b => b && typeof b.views === 'object' && b.views !== null
+  );
   const effectiveAvailabilityView = hasMultiViewAvailability && AVAILABILITY_VIEWS.includes(selectedAvailabilityView)
     ? selectedAvailabilityView : FALLBACK_VIEW;
 
-  // Process raw availability into distinct visual blocks
-  const projectedAvailability = (groupId ? rawAvailabilityBlocks : []).map((block, i) => {
+  // 1. Process the raw backend blocks
+  const rawProjectedAvailability = (groupId ? rawAvailabilityBlocks : []).map((block, i) => {
     const { availableCount } = getViewStatsFromBlock(block, effectiveAvailabilityView);
     return { title: '', availLvl: availableCount, start: block.start, end: block.end, event_id: `avail-${i}`, mode: 'avail' };
   });
+
+  // 2. Filter the backend blocks against the user's personal calendar
+  const projectedAvailability = filterAvailabilityAgainstPersonalEvents(
+      rawProjectedAvailability, 
+      finalRawEvents, 
+      effectiveAvailabilityView
+  );
 
   // Merge adjacent 15-minute blocks for DOM performance
   const consolidatedAvailability = mergeAvailabilityBlocks(projectedAvailability);
