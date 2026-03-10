@@ -62,6 +62,7 @@ export default function CalendarEventBlock({
   let opacity = 1;
   let zIndex = 2; // Default z-index puts personal events ABOVE the grid but BELOW petitions
   let petitionClass = '';
+  let isAboveAvailability = false;
 
   if (event.mode === 'petition') {
     // Petition specific styling
@@ -96,7 +97,7 @@ export default function CalendarEventBlock({
     const normalizedBlockingLevel = normalizeBlockingLevelFromEvent(event);
     
     // Check if this personal event is a Hard Block that needs to cover up the green heatmap
-    const isAboveAvailability = shouldRenderRegularEventAboveAvailability(effectiveAvailabilityView, normalizedBlockingLevel);
+    isAboveAvailability = shouldRenderRegularEventAboveAvailability(effectiveAvailabilityView, normalizedBlockingLevel);
     
     // If it is, bump it to z-index 4. Otherwise, leave it at 2 (under the heatmap).
     zIndex = isAboveAvailability ? 4 : 2;
@@ -113,11 +114,11 @@ export default function CalendarEventBlock({
   }
 
   // --- DE-EMPHASIS LOGIC ---
-  // If it's a multi-day event, fade it out so the calendar isn't completely colored in
+  // If it's a daylong event, fade it out so the calendar isn't completely colored in
   const shouldDeEmphasize = shouldDeEmphasizeEventSegment(event);
   const finalOpacity = shouldDeEmphasize ? Math.min(opacity, DEEMPHASIZED_EVENT_OPACITY) : opacity;
   // Push de-emphasized events to the absolute bottom z-index layer
-  const finalZIndex = shouldDeEmphasize ? 1 : zIndex;
+  const finalZIndex = (shouldDeEmphasize && !isAboveAvailability) ? 1 : zIndex;
 
   // Add a dashed border if it's a drag-and-drop preview
   const borderStyle = event.isPreview ? '2px dashed #333' : (event.borderColor ? `1px solid ${event.borderColor}` : 'none');

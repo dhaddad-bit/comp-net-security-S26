@@ -101,7 +101,7 @@ export function spansMultipleLocalDays(start, end) {
 
 // Flag to visually fade out all-day or multi-day events so they don't block the screen
 export function shouldDeEmphasizeEventSegment(event) {
-  return event?.mode !== 'avail' && (event?.isAllDay || event?.spansMultipleDays);
+  return event?.mode !== 'avail' && (event?.isAllDay);
 }
 
 // Regex check to see if a string is strictly "YYYY-MM-DD"
