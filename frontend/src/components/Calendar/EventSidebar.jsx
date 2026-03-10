@@ -209,18 +209,25 @@ export default function EventSidebar({
         }
     };
 
+    // 1. Check if any of the universally required fields are blank
+    const missingBasicInfo = !title.trim() || !date || !startTime || !endTime;
+
+    // 2. Keep your existing petition checks
     const petitionBlocked =
         mode === 'petition' && (
             petitionPreflightState === 'loading' ||
             petitionPreflightState === 'error' ||
             !petitionGroupId
         );
-    const submitDisabled = isSubmitting || petitionBlocked;
+        
+    // 3. THE FIX: Disable the button if submitting, if petition is blocked, OR if basic info is missing!
+    const submitDisabled = isSubmitting || petitionBlocked || missingBasicInfo;
+    
     const submitLabel = isSubmitting
         ? 'Saving...'
         : (mode === 'petition' && petitionPreflightState === 'loading')
             ? 'Checking Access...'
-            : 'Finalize Event';
+            : 'Finalize Event'; 
 
     return (
         <div className="event-sidebar-container">
