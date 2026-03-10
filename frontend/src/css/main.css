@@ -177,6 +177,13 @@ button:hover {
   min-height: 0;
 }
 
+.cancel-btn {
+  border: none;
+  background: transparent;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
 /* --- MOBILE LAYOUT FIX --- */
 /* Target screens smaller than a standard tablet (768px) */
 @media (max-width: 900px) {

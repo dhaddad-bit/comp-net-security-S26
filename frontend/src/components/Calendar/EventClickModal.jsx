@@ -18,9 +18,11 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
   const [newPriority, setNewPriority] = useState(initialPriority);
   // State to disable buttons while waiting for the backend to respond
   const [isSaving, setIsSaving] = useState(false);
+  const [inlineError, setInlineError] = useState('');
 
   // Fires when the user clicks "Save Changes"
   const handleSave = async () => {
+    setInlineError('');
     setIsSaving(true);
     try {
       // Send the update request to the backend
@@ -34,7 +36,7 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
       onClose();
     } catch (error) {
       console.error("Failed to update priority", error);
-      alert("Failed to update blocking level.");
+      setInlineError('Failed to update blocking level.');
     } finally {
       setIsSaving(false);
     }
@@ -46,6 +48,7 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
     const confirmDelete = window.confirm(`Are you sure you want to delete "${event.title}"?`);
     if (!confirmDelete) return;
 
+  setInlineError('');
     setIsSaving(true);
     try {
       // Send delete request to backend
@@ -54,60 +57,61 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
       onClose();
     } catch (error) {
       console.error("Failed to delete event", error);
-      alert("Failed to delete the event.");
+      setInlineError('Failed to delete the event.');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '500px', width: '90%', padding: '24px' }}>
-        
-        {/* Header and Details */}
-        <h2 style={{ marginTop: 0 }}>{event.title}</h2>
-        <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
-        <p><strong>End:</strong> {event.end.toLocaleString()}</p>
-        
-        {/* Human-readable Priority display */}
-        <p><strong>Current Priority:</strong> {
-          initialPriority === 3 ? "High" :
-          initialPriority === 2 ? "Med" :
-          initialPriority === 1 ? "Low" : initialPriority
-        }</p>
-
-        {/* The Dropdown Menu */}
-        <div style={{ margin: '15px 0' }}>
-          <label><strong>Change Blocking Level:</strong></label>
-          <select
-            value={newPriority}
-            onChange={(e) => setNewPriority(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-          >
-            <option value={1}>Low (Optional)</option>
-            <option value={2}>Medium (Flexible)</option>
-            <option value={3}>High (Immovable)</option>
-          </select>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-shell" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{event.title}</h3>
+          <button onClick={onClose} disabled={isSaving} className="cancel-btn" aria-label="Close event modal">
+            &times;
+          </button>
         </div>
 
-        {/* The Action Buttons */}
-        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="modal-body">
+          <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
+          <p><strong>End:</strong> {event.end.toLocaleString()}</p>
+          <p><strong>Current Priority:</strong> {
+            initialPriority === 3 ? 'High' :
+            initialPriority === 2 ? 'Med' :
+            initialPriority === 1 ? 'Low' : initialPriority
+          }</p>
+
+          <div className="event-modal-field">
+            <label htmlFor="event-priority-select"><strong>Change Blocking Level:</strong></label>
+            <select
+              id="event-priority-select"
+              value={newPriority}
+              onChange={(e) => setNewPriority(e.target.value)}
+              className="event-modal-select"
+              disabled={isSaving}
+            >
+              <option value={1}>Low (Optional)</option>
+              <option value={2}>Medium (Flexible)</option>
+              <option value={3}>High (Immovable)</option>
+            </select>
+          </div>
+
+          {inlineError ? <p className="modal-inline-error">{inlineError}</p> : null}
+        </div>
+
+        <div className="modal-actions-row">
           <button
             onClick={handleDelete}
             disabled={isSaving}
-            style={{ backgroundColor: '#d63031', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
+            className="modal-btn-muted"
           >
             Delete Event
           </button>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={onClose} disabled={isSaving}>Cancel</button>
-            <button className="primary-btn" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
+          <button className="modal-btn-success" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
-
       </div>
     </div>
   );

@@ -189,16 +189,16 @@ export default function PetitionActionModal({
   };
 
   return (
-    <div className="petition-modal-backdrop" onClick={onClose}>
-      <div className="petition-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="petition-modal-header">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-shell" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
           <h3>{title}</h3>
-          <button className="petition-modal-close" onClick={onClose} disabled={submitting}>
+          <button className="cancel-btn" onClick={onClose} disabled={submitting}>
             ×
           </button>
         </div>
 
-        <div className="petition-modal-body">
+        <div className="modal-body">
           <p><strong>Group:</strong> {groupName || `Group ${petition.groupId ?? petition.group_id}`}</p>
           <p><strong>When:</strong> {formatDateTimeRange(petition)}</p>
           <p><strong>Status:</strong> {status}</p>
@@ -208,14 +208,14 @@ export default function PetitionActionModal({
             <p><strong>Your response:</strong> {currentResponseLabel}</p>
           ) : null}
           {inlineError ? (
-            <p className="petition-inline-error">{inlineError}</p>
+            <p className="modal-inline-error">{inlineError}</p>
           ) : null}
         </div>
 
-        <div className="petition-modal-actions">
+        <div className="modal-actions-row">
           {isCreator ? (
             <button
-              className="petition-danger-btn"
+              className="modal-btn-muted"
               onClick={handleDelete}
               disabled={submitting}
             >
@@ -224,14 +224,14 @@ export default function PetitionActionModal({
           ) : (
             <>
               <button
-                className="petition-accept-btn"
+                className="modal-btn-success"
                 onClick={() => handleRespond('ACCEPT')}
                 disabled={participantButtonsDisabled}
               >
                 {acceptLabel}
               </button>
               <button
-                className="petition-decline-btn"
+                className="modal-btn-danger"
                 onClick={() => handleRespond('DECLINE')}
                 disabled={participantButtonsDisabled}
               >
@@ -239,9 +239,6 @@ export default function PetitionActionModal({
               </button>
             </>
           )}
-          <button className="petition-secondary-btn" onClick={onClose} disabled={submitting}>
-            Close
-          </button>
         </div>
       </div>
     </div>

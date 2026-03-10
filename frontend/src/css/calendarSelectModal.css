@@ -14,6 +14,7 @@
 
 /* Modal Content */
 .calendar-modal-content {
+    position: relative;
     background-color: white;
     padding: 30px;
     border-radius: 10px;

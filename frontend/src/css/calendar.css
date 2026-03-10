@@ -301,7 +301,7 @@ button:disabled {
   color: #ffffff;
 }
 
-.petition-modal-backdrop {
+.modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
@@ -312,7 +312,7 @@ button:disabled {
   padding: 16px;
 }
 
-.petition-modal {
+.modal-shell {
   width: min(480px, 100%);
   background: #ffffff;
   color: #222222;
@@ -321,7 +321,7 @@ button:disabled {
   overflow: hidden;
 }
 
-.petition-modal-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -329,40 +329,33 @@ button:disabled {
   border-bottom: 1px solid #ececec;
 }
 
-.petition-modal-header h3 {
+.modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
 }
 
-.petition-modal-close {
-  border: none;
-  background: transparent;
-  font-size: 1.3rem;
-  cursor: pointer;
-}
-
-.petition-modal-body {
+.modal-body {
   padding: 16px 18px;
 }
 
-.petition-modal-body p {
+.modal-body p {
   margin: 0 0 10px;
 }
 
-.petition-inline-error {
+.modal-inline-error {
   color: #b42318;
   font-size: 0.9rem;
   margin-top: 10px;
 }
 
-.petition-modal-actions {
+.modal-actions-row {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   padding: 0 18px 18px;
 }
 
-.petition-modal-actions button {
+.modal-actions-row button {
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
@@ -370,27 +363,34 @@ button:disabled {
   font-weight: 600;
 }
 
-.petition-secondary-btn {
-  background: #e9ecef;
-  color: #1f1f1f;
-}
-
-.petition-accept-btn {
+.modal-btn-success {
   background: #52b788;
   color: #ffffff;
 }
 
-.petition-decline-btn {
+.modal-btn-danger {
   background: #bc4749;
   color: #ffffff;
 }
 
-.petition-danger-btn {
+.modal-btn-muted {
   background: #6c757d;
   color: #ffffff;
 }
 
-.petition-modal-actions button:disabled {
+.modal-actions-row button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.event-modal-field {
+  margin-top: 12px;
+}
+
+.event-modal-select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
 }
