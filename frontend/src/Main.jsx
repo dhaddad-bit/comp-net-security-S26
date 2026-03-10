@@ -24,6 +24,69 @@ export default function Main() {
     // live draft preview of event being created/edited.
     const [draftEvent, setDraftEvent] = useState(null);
 
+    // State to hold the autofill data from a calendar click
+    const [clickedCellDetails, setClickedCellDetails] = useState(null);
+
+    // The handler we will pass down to the Calendar
+    const handleCalendarCellClick = (clickedDate, hour) => {
+        // Format the date as YYYY-MM-DD
+        const year = clickedDate.getFullYear();
+        const month = String(clickedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(clickedDate.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+
+        // Format the hours as HH:00
+        const startHour = String(hour).padStart(2, '0');
+        // If they click 11 PM (23), make the end time 00:00 (Midnight)
+        const endHour = String((hour + 1) % 24).padStart(2, '0');
+
+        setClickedCellDetails({
+            date: dateString,
+            startTime: `${startHour}:00`,
+            endTime: `${endHour}:00`
+        });
+
+        // If the sidebar is closed, snap it open!
+        if (!isEventSidebarOpen) {
+            setIsEventSidebarOpen(true);
+            setIsGroupsSidebarOpen(false);
+        }
+    };
+
+    // Handles the drag-and-drop of the draft event
+    const handleDraftDrop = (droppedDate, startHour, startMin) => {
+        if (!draftEvent) return;
+
+        // 1. Calculate the current duration of the event in milliseconds
+        const durationMs = draftEvent.end.getTime() - draftEvent.start.getTime();
+
+        // 2. Create the exact new Start Date object
+        const newStart = new Date(droppedDate);
+        newStart.setHours(startHour, startMin, 0, 0);
+
+        // 3. Create the new End Date object by adding the duration to the new start time
+        const newEnd = new Date(newStart.getTime() + durationMs);
+
+        // 4. Format everything back into the strings the EventSidebar requires
+        const year = newStart.getFullYear();
+        const month = String(newStart.getMonth() + 1).padStart(2, '0');
+        const day = String(newStart.getDate()).padStart(2, '0');
+        
+        const sHour = String(newStart.getHours()).padStart(2, '0');
+        const sMin = String(newStart.getMinutes()).padStart(2, '0');
+        
+        const eHour = String(newEnd.getHours()).padStart(2, '0');
+        const eMin = String(newEnd.getMinutes()).padStart(2, '0');
+
+        // 5. Instantly overwrite the sidebar form inputs!
+        setClickedCellDetails({
+            date: `${year}-${month}-${day}`,
+            startTime: `${sHour}:${sMin}`,
+            endTime: `${eHour}:${eMin}`,
+            _ts: Date.now() // Force the update
+        });
+    };
+
     // Move fetchGroups INSIDE so it can see setGroupsList
     const [eventMode, setEventMode] = useState('blocking');
     const [petitionGroupId, setPetitionGroupId] = useState('');
@@ -91,6 +154,14 @@ export default function Main() {
         fetchGroups();
         fetchPendingInvite();
     }, []);
+
+    // Automatically clear the ghost draft event if the sidebar gets closed
+    useEffect(() => {
+        if (!isEventSidebarOpen) {
+            setDraftEvent(null);
+            setClickedCellDetails(null); // Clear the autofill data too!
+        }
+    }, [isEventSidebarOpen]);
 
     // Toggle the sidebar open/closed
     const toggleGroupsSidebar = () => {
@@ -205,10 +276,16 @@ export default function Main() {
 
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
-                    <div className="calendar-home-panel">
-                        <Calendar refreshTrigger={calRefreshSignal} draftEvent={draftEvent} groupId={selectedGroupId}/>
-                    </div>
-                </section>
+            <div className="calendar-home-panel">
+                <Calendar 
+                    refreshTrigger={calRefreshSignal} 
+                    draftEvent={draftEvent} 
+                    groupId={selectedGroupId}
+                    onCellClick={handleCalendarCellClick}
+                    onDraftDrop={handleDraftDrop}
+                />
+            </div>
+        </section>
 
                 {/* The Event sidebar, which is used for both creating and editing events. */}
                 {isEventSidebarOpen && (
@@ -220,6 +297,7 @@ export default function Main() {
                             petitionGroupId={petitionGroupId}
                             setPetitionGroupId={setPetitionGroupId}
                             groupsList={groupsList} // pass groups for dorpdown
+                            clickedCellDetails={clickedCellDetails}
                             onFinalize={() => {
                                 setIsEventSidebarOpen(false);
                                 setDraftEvent(null);

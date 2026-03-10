@@ -26,7 +26,7 @@ import {
 import CalendarEventBlock from './CalendarEventBlock';
 import EventClickModal from './EventClickModal';
 
-export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) {
+export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, onCellClick, onDraftDrop }) {
   // --- APPLICATION STATE ---
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date()));
   const [rawEvents, setRawEvents] = useState([]);
@@ -319,7 +319,53 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent }) 
 
               {/* Render the 7 cells for this specific hour row */}
               {days.map((day, i) => (
-                <div key={i} className={`calendar-cell${isSameLocalDay(day, today) ? ' is-today' : ''}`}>
+                <div 
+                  key={i} 
+                  className={`calendar-cell${isSameLocalDay(day, today) ? ' is-today' : ''}`}
+                  // Fire the handler when the empty cell is clicked
+                  onClick={() => onCellClick && onCellClick(day, hour)}
+                    
+                  // NEW: Allow things to be dropped here
+                  onDragOver={(e) => e.preventDefault()} 
+                  
+                  // Handle the math when the draft block is dropped
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    
+                    try {
+                    // 1. Get the JSON payload (trying both formats)
+                    const transferData = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain');
+                    if (!transferData) return;
+                    
+                    const data = JSON.parse(transferData);
+                    
+                    // Verify this is our draft block
+                    if (data.type === 'draft' && onDraftDrop) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        
+                        // 2. Find where the mouse is relative to the top of THIS specific hour cell
+                        const mousePixelY = e.clientY - rect.top;
+                        
+                        // 3. Subtract the user's drag offset to find where the TOP of the event actually is
+                        const actualEventTopPixelY = mousePixelY - data.offsetY;
+                        
+                        // 4. Convert to a percentage. 
+                        // Note: This might be negative if the top of the event is in the cell above the mouse!
+                        const percent = actualEventTopPixelY / rect.height;
+                        
+                        // 5. Convert to minutes and snap to 15-minute intervals
+                        const exactMinute = percent * 60;
+                        const snappedMinute = Math.round(exactMinute / 15) * 15;
+                        
+                        // 6. Send it back to Main.jsx
+                        onDraftDrop(day, hour, snappedMinute);
+                    }
+                    } catch (err) {
+                      console.error("Failed to parse drag-and-drop data:", err);
+                    }
+                }}
+                >
+        
                   
                   {/* Filter allEvents to find events that belong exactly in this Day AND Hour cell */}
                   {allEvents

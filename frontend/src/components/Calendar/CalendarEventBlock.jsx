@@ -62,6 +62,7 @@ export default function CalendarEventBlock({
   let opacity = 1;
   let zIndex = 2; // Default z-index puts personal events ABOVE the grid but BELOW petitions
   let petitionClass = '';
+  let isAboveAvailability = false;
 
   if (event.mode === 'petition') {
     // Petition specific styling
@@ -96,7 +97,7 @@ export default function CalendarEventBlock({
     const normalizedBlockingLevel = normalizeBlockingLevelFromEvent(event);
     
     // Check if this personal event is a Hard Block that needs to cover up the green heatmap
-    const isAboveAvailability = shouldRenderRegularEventAboveAvailability(effectiveAvailabilityView, normalizedBlockingLevel);
+    isAboveAvailability = shouldRenderRegularEventAboveAvailability(effectiveAvailabilityView, normalizedBlockingLevel);
     
     // If it is, bump it to z-index 4. Otherwise, leave it at 2 (under the heatmap).
     zIndex = isAboveAvailability ? 4 : 2;
@@ -113,11 +114,11 @@ export default function CalendarEventBlock({
   }
 
   // --- DE-EMPHASIS LOGIC ---
-  // If it's a multi-day event, fade it out so the calendar isn't completely colored in
+  // If it's a daylong event, fade it out so the calendar isn't completely colored in
   const shouldDeEmphasize = shouldDeEmphasizeEventSegment(event);
   const finalOpacity = shouldDeEmphasize ? Math.min(opacity, DEEMPHASIZED_EVENT_OPACITY) : opacity;
   // Push de-emphasized events to the absolute bottom z-index layer
-  const finalZIndex = shouldDeEmphasize ? 1 : zIndex;
+  const finalZIndex = (shouldDeEmphasize && !isAboveAvailability) ? 1 : zIndex;
 
   // Add a dashed border if it's a drag-and-drop preview
   const borderStyle = event.isPreview ? '2px dashed #333' : (event.borderColor ? `1px solid ${event.borderColor}` : 'none');
@@ -133,11 +134,37 @@ export default function CalendarEventBlock({
     event.className || ''
   ].filter(Boolean).join(' ');
 
+  const handleEventClickInner = (e) => {
+    // Prevent the click from "bubbling up" to the empty calendar cell
+    e.stopPropagation(); 
+    
+    if (event.mode === 'petition' || isRegularEventClickable) {
+      onEventClick(event);
+    }
+  };
+
   return (
     <div
       className={combinedClassName}
+      draggable={event.isPreview}
+      onDragStart={(e) => {
+        if (event.isPreview) {
+          // 1. Find the exact boundaries of the event block on the screen
+          const rect = e.currentTarget.getBoundingClientRect();
+          
+          // 2. Calculate how far down from the top of the block the user clicked
+          const offsetY = e.clientY - rect.top;
+          
+          // 3. Package this data into a JSON string and attach it to the drag event
+          const dragPayload = JSON.stringify({ type: 'draft', offsetY: offsetY });
+          
+          // Use 'application/json' for modern browsers, fallback to 'text/plain' just in case
+          e.dataTransfer.setData('application/json', dragPayload);
+          e.dataTransfer.setData('text/plain', dragPayload);
+        }
+      }}
       // Attach click handler if applicable
-      onClick={(event.mode === 'petition' || isRegularEventClickable) ? () => onEventClick(event) : undefined}
+      onClick={(e) => handleEventClickInner(e)}
       // Attach hover handlers if it's a heatmap block (for the tooltip)
       onMouseEnter={event.mode === 'avail' ? (e) => onTooltipEnter(e, event.availLvl) : undefined}
       onMouseMove={event.mode === 'avail' ? (e) => onTooltipEnter(e, event.availLvl) : undefined}
@@ -151,8 +178,7 @@ export default function CalendarEventBlock({
         color: textColor,
         border: borderStyle,
         // Change mouse pointer to hand icon if clickable
-        cursor: (event.mode === 'petition' || isRegularEventClickable) ? 'pointer' : 'default'
-      }}
+        cursor: event.isPreview ? 'grab' : (event.mode === 'petition' || isRegularEventClickable ? 'pointer' : 'default')      }}
     >
       {/* Do not render titles on the green heatmap blocks, it clutters the UI */}
       {event.mode === 'avail' ? null : (event.titleRaw || event.title)}
