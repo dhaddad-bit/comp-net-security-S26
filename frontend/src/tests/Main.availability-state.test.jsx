@@ -2,8 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 
-import Main from './Main';
-import { apiGet, apiPost } from './api';
+import Main from '../Main';
+import { apiGet, apiPost } from '../api';
 
 jest.mock('./api', () => ({
   apiGet: jest.fn(),
