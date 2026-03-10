@@ -51,7 +51,7 @@ export default function CalendarEventBlock({
   // Calculate percentage from top
   const topPercent = (startMins / 60) * 100;
   
-  // calculate the pixel dirft
+  // calculate the pixel dirft so that event sdont cross the bottom hour line
   let pixelDrift = durationHours > 3 
     ? Math.floor((durationHours - 1) / 3) 
     : (durationHours == 3 ? 1 : 0);
@@ -62,18 +62,6 @@ export default function CalendarEventBlock({
     calc(${durationHours * 100}% + 
     ${durationHours * (2) - 2 - pixelDrift}px)
   `;
-
-  // if (startHour == 0 && startMins == 0) {
-  //   heightPercent = `
-  //     calc(${(durationMins / 60) * 100}% + 
-  //     ${(durationMins / 60) * - 4}px)`;
-  // }
-
-  // if (event.isAllDay) {
-  //   heightPercent = `
-  //     calc(${(durationMins / 60) * 100}% + 
-  //     ${(durationMins / 60) * 2 - 10}px)`;
-  // }
 
   // --- VISUAL STYLING LOGIC ---
   // Default fallbacks
