@@ -20,6 +20,35 @@ function normalizeBlockingLevel(level) {
     return "B3";
 }
 
+// -- GARRETT IS MAKING CHANGES
+/**
+ * Detects if an event is an all-day event (saved as exactly Midnight UTC).
+ * If it is, it shifts the epoch milliseconds so the event spans from 
+ * Local Midnight to Local Midnight, fixing the 5:00 PM timezone offset bug.
+ */
+function adjustIfAllDay(startMs, endMs) {
+    const start = new Date(startMs);
+    const end = new Date(endMs);
+
+    // Check if both timestamps land perfectly on 00:00:00.000 in UTC
+    const isStartMidnightUTC = start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && start.getUTCSeconds() === 0 && start.getUTCMilliseconds() === 0;
+    const isEndMidnightUTC = end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && end.getUTCSeconds() === 0 && end.getUTCMilliseconds() === 0;
+
+    if (isStartMidnightUTC && isEndMidnightUTC) {
+        // getTimezoneOffset() returns minutes. We convert that to milliseconds.
+        // In PDT, this adds exactly 7 hours (25,200,000 ms) to the timestamps!
+        const offsetMs = start.getTimezoneOffset() * 60 * 1000;
+        return {
+            adjustedStartMs: startMs + offsetMs,
+            adjustedEndMs: endMs + offsetMs
+        };
+    }
+
+    return { adjustedStartMs: startMs, adjustedEndMs: endMs };
+}
+
+// -- GARRETT IS DONE MAKING CHANGES
+
 /**
  * Transforms flat SQL rows into the nested array required by the algorithm.
  * * @param {Array} dbRows - Flat array of objects from Postgres
@@ -43,12 +72,35 @@ function mapDatabaseRowsToParticipants(dbRows) {
         if (event_start && event_end) {
             const levelFromSql = normalizeBlockingLevel(row.blocking_level);
             const levelFromPriority = priorityMapping[row.priority] || "B3";
+            
+            // GARRETT IS ADDING CODE
+
+                // Extract raw epoch milliseconds
+                const rawStartMs = new Date(event_start).getTime();
+                const rawEndMs = new Date(event_end).getTime();
+            
+                // Run them through the timezone corrector
+                const { adjustedStartMs, adjustedEndMs } = adjustIfAllDay(rawStartMs, rawEndMs);
+
+                participantMap.get(user_id).events.push({
+                    startMs: adjustedStartMs,
+                    endMs: adjustedEndMs,
+                    // Prefer blocking_level from SQL; fallback to priority for compatibility.
+                    blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
+                });
+
+            // DAVID'S ORIGINAL CODE START
+            /*
             participantMap.get(user_id).events.push({
                 startMs: new Date(event_start).getTime(),
                 endMs: new Date(event_end).getTime(),
                 // Prefer blocking_level from SQL; fallback to priority for compatibility.
                 blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
             });
+            */
+            // DAVID'S ORIGINAL CODE END
+
+            // GARRETT IS DONE ADDING CODE
         }
     }
 
