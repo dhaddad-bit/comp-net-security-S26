@@ -133,11 +133,37 @@ export default function CalendarEventBlock({
     event.className || ''
   ].filter(Boolean).join(' ');
 
+  const handleEventClickInner = (e) => {
+    // Prevent the click from "bubbling up" to the empty calendar cell
+    e.stopPropagation(); 
+    
+    if (event.mode === 'petition' || isRegularEventClickable) {
+      onEventClick(event);
+    }
+  };
+
   return (
     <div
       className={combinedClassName}
+      draggable={event.isPreview}
+      onDragStart={(e) => {
+        if (event.isPreview) {
+          // 1. Find the exact boundaries of the event block on the screen
+          const rect = e.currentTarget.getBoundingClientRect();
+          
+          // 2. Calculate how far down from the top of the block the user clicked
+          const offsetY = e.clientY - rect.top;
+          
+          // 3. Package this data into a JSON string and attach it to the drag event
+          const dragPayload = JSON.stringify({ type: 'draft', offsetY: offsetY });
+          
+          // Use 'application/json' for modern browsers, fallback to 'text/plain' just in case
+          e.dataTransfer.setData('application/json', dragPayload);
+          e.dataTransfer.setData('text/plain', dragPayload);
+        }
+      }}
       // Attach click handler if applicable
-      onClick={(event.mode === 'petition' || isRegularEventClickable) ? () => onEventClick(event) : undefined}
+      onClick={(e) => handleEventClickInner(e)}
       // Attach hover handlers if it's a heatmap block (for the tooltip)
       onMouseEnter={event.mode === 'avail' ? (e) => onTooltipEnter(e, event.availLvl) : undefined}
       onMouseMove={event.mode === 'avail' ? (e) => onTooltipEnter(e, event.availLvl) : undefined}
@@ -151,8 +177,7 @@ export default function CalendarEventBlock({
         color: textColor,
         border: borderStyle,
         // Change mouse pointer to hand icon if clickable
-        cursor: (event.mode === 'petition' || isRegularEventClickable) ? 'pointer' : 'default'
-      }}
+        cursor: event.isPreview ? 'grab' : (event.mode === 'petition' || isRegularEventClickable ? 'pointer' : 'default')      }}
     >
       {/* Do not render titles on the green heatmap blocks, it clutters the UI */}
       {event.mode === 'avail' ? null : (event.titleRaw || event.title)}

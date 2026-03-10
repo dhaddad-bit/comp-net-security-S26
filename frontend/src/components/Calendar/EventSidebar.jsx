@@ -9,7 +9,8 @@ export default function EventSidebar({
     setMode,
     petitionGroupId,
     setPetitionGroupId,
-    groupsList
+    groupsList,
+    clickedCellDetails
 }) {
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
@@ -23,7 +24,9 @@ export default function EventSidebar({
     // Update the live preview whenever inputs change
     useEffect(() => {
         const trimmedTitle = title.trim();
-        const previewTitle = trimmedTitle || (mode === 'blocking' ? 'Busy Block' : '');
+        const previewTitle = trimmedTitle || 
+            (mode === 'blocking' ? 
+                'Busy Block' : 'Petition');
 
         if (previewTitle && date && startTime && endTime) {
             // Construct full Date objects for the calendar to read
@@ -91,6 +94,15 @@ export default function EventSidebar({
             cancelled = true;
         };
     }, [mode, petitionGroupId]);
+
+    // NEW: Listen for calendar clicks and autofill the form
+    useEffect(() => {
+        if (clickedCellDetails) {
+            setDate(clickedCellDetails.date);
+            setStartTime(clickedCellDetails.startTime);
+            setEndTime(clickedCellDetails.endTime);
+        }
+    }, [clickedCellDetails]);
 
     const handleSubmit = async () => {
         const trimmedTitle = title.trim();
