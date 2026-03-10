@@ -22,22 +22,26 @@ function normalizeBlockingLevel(level) {
 
 // -- GARRETT IS MAKING CHANGES
 /**
- * Detects if an event is an all-day event (saved as exactly Midnight UTC).
- * If it is, it shifts the epoch milliseconds so the event spans from 
- * Local Midnight to Local Midnight, fixing the 5:00 PM timezone offset bug.
+ * Detects all-day events and snaps them to the user's LOCAL midnight 
+ * by mathematically extracting their timezone offset from the windowStartMs.
  */
-function adjustIfAllDay(startMs, endMs) {
+function adjustIfAllDay(startMs, endMs, windowStartMs) {
     const start = new Date(startMs);
     const end = new Date(endMs);
 
-    // Check if both timestamps land perfectly on 00:00:00.000 in UTC
-    const isStartMidnightUTC = start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && start.getUTCSeconds() === 0 && start.getUTCMilliseconds() === 0;
-    const isEndMidnightUTC = end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && end.getUTCSeconds() === 0 && end.getUTCMilliseconds() === 0;
+    // Check if both timestamps land perfectly on Midnight UTC
+    const isStartMidnightUTC = start.getUTCHours() === 0 && start.getUTCMinutes() === 0;
+    const isEndMidnightUTC = end.getUTCHours() === 0 && end.getUTCMinutes() === 0;
 
     if (isStartMidnightUTC && isEndMidnightUTC) {
-        // getTimezoneOffset() returns minutes. We convert that to milliseconds.
-        // In PDT, this adds exactly 7 hours (25,200,000 ms) to the timestamps!
-        const offsetMs = start.getTimezoneOffset() * 60 * 1000;
+        // MAGIC TRICK: Extract the user's exact offset from their local midnight timestamp
+        let offsetMs = windowStartMs % (24 * 60 * 60 * 1000);
+        
+        // If the remainder is > 12 hours, the user is in the Eastern Hemisphere (ahead of UTC)
+        if (offsetMs > 12 * 60 * 60 * 1000) {
+            offsetMs -= (24 * 60 * 60 * 1000);
+        }
+
         return {
             adjustedStartMs: startMs + offsetMs,
             adjustedEndMs: endMs + offsetMs
@@ -54,7 +58,7 @@ function adjustIfAllDay(startMs, endMs) {
  * * @param {Array} dbRows - Flat array of objects from Postgres
  * @returns {Array} Array of ParticipantSnapshot objects
  */
-function mapDatabaseRowsToParticipants(dbRows) {
+function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
     const participantMap = new Map();
 
     for (const row of dbRows) {
@@ -73,6 +77,7 @@ function mapDatabaseRowsToParticipants(dbRows) {
             const levelFromSql = normalizeBlockingLevel(row.blocking_level);
             const levelFromPriority = priorityMapping[row.priority] || "B3";
             
+
             // GARRETT IS ADDING CODE
 
                 // Extract raw epoch milliseconds
@@ -80,7 +85,7 @@ function mapDatabaseRowsToParticipants(dbRows) {
                 const rawEndMs = new Date(event_end).getTime();
             
                 // Run them through the timezone corrector
-                const { adjustedStartMs, adjustedEndMs } = adjustIfAllDay(rawStartMs, rawEndMs);
+                const { adjustedStartMs, adjustedEndMs } = adjustIfAllDay(rawStartMs, rawEndMs, windowStartMs);
 
                 participantMap.get(user_id).events.push({
                     startMs: adjustedStartMs,
@@ -191,7 +196,7 @@ async function fetchAndMapGroupEvents(db, groupId, windowStartMs, windowEndMs) {
         const result = await db.query(query, values);
         
         // Pass the raw Postgres rows into our reducer
-        const formattedParticipants = mapDatabaseRowsToParticipants(result.rows);
+        const formattedParticipants = mapDatabaseRowsToParticipants(result.rows, windowStartMs);
         return formattedParticipants;
         
     } catch (error) {
