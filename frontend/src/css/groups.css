@@ -32,6 +32,10 @@
   font-weight: 600;
   color: #2d3436;
   font-size: 1.1rem;
+  min-width: 0;
+  flex: 1;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Button Container (to keep buttons together on the right) */
