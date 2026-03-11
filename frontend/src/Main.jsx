@@ -12,6 +12,7 @@ import PendingInviteModal from './components/Groups/PendingInviteModal';
 import EventSidebar from './components/Calendar/EventSidebar';
 import { ErrorContext } from './ErrorContext';
 import './css/main.css';
+import './css/zindex.css';
 import {apiGet, apiPost} from './api';
 import ResizableSidebar from './components/ResizeableSidebar';
 
@@ -50,7 +51,7 @@ export default function Main() {
     const { setError } = useContext(ErrorContext);
 
 
-    const handleCalendarCellClick = (clickedDate, hour) => {
+    const handleCalendarCellClick = (clickedDate, hour, targetMode) => {
         /*
         The handler we will pass down to the Calendar
         Arguments are the date user clicks and the hour they clicked on
@@ -74,8 +75,7 @@ export default function Main() {
             endTime: `${endHour}:00`
         });
 
-        // targetMode is undefined, removing for now
-        // setEventMode(targetMode);
+        setEventMode(targetMode);
 
         // instantly auto-fill the dropdown with that group's ID!
         if (selectedGroupId) {

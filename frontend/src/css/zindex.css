@@ -1,0 +1,59 @@
+.corner-cell {
+    z-index: 200;
+}
+
+.day-header {
+    z-index: 150;
+}
+
+.time-label {
+    z-index: 100;
+}
+
+.calendar-event {
+    /*
+    NORMAL: 20,
+    BLOCKING: 30,
+    AVAIL: 50,
+    PETITION: 40,
+    DEEMPHASIZE: 10,
+    PREVIEW: 60
+    */
+
+    z-index: 1;
+}
+
+.calendar-event:hover {
+    z-index: 59 !important;
+}
+
+.availability-tooltip {
+    z-index: 70;
+}
+
+.modal-backdrop {
+    z-index: 2000;
+}
+
+.calendar-modal-overlay {
+    /* for calendar selection on first login (CalendarSelectionModal.jsx) */
+    z-index: 1000;
+}
+
+.search-dropdown-menu {
+    z-index: 1100;
+}
+
+.modal-overlay {
+    /* the actual modal */
+    z-index: 1000;
+}
+
+.resize-handle {
+    z-index: 500;
+}
+
+.main-sidebar {
+    /* the sidebar elements and modals */
+    z-index: 1000;
+}
