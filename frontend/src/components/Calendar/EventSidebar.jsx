@@ -237,9 +237,8 @@ export default function EventSidebar({
             <div className="mode-toggle">
                 <button id="blockingBtn"
                         style={{
-                          transform: mode === 'blocking' ? 'scale(1.1)' : 'scale(1)',
+                          transform: mode === 'blocking' ? 'scale(1.2)' : 'scale(1)',
                           zIndex: mode === 'blocking' ? 1 : 0
-
                         }}
                     onClick={() => setMode('blocking')}
                 >
@@ -247,7 +246,7 @@ export default function EventSidebar({
                 </button>
                 <button id="petitionBtn" 
                     style={{
-                      transform: mode === 'petition' ? 'scale(1.1)' : 'scale(1)',
+                      transform: mode === 'petition' ? 'scale(1.2)' : 'scale(1)',
                       zIndex: mode === 'petition' ? 1 : 0
                     }}
                     onClick={() => setMode('petition')}
@@ -258,7 +257,7 @@ export default function EventSidebar({
 
             <label>Event Name</label>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} />
-                    <br />
+            
             {mode === 'petition' && (
                 <>
                     <label>Select Group</label>
@@ -279,7 +278,7 @@ export default function EventSidebar({
                     </p>
                 </>
             )}
-            <br />
+            
             <label>Priority</label>
             <select
                 value={selectedBlockingLevel}
@@ -290,16 +289,17 @@ export default function EventSidebar({
                 <option value="B2">Med</option>
                 <option value="B3">High</option>
             </select>
-            <br />
-            <label>Date & Time</label>
+            
+            <label>Date</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-                    <br />
+            
+            <label>Time</label>
             <div id="timeEntry">
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-                    <span style={{ margin: '0 5px' }}> - </span>
+                    <span style={{ fontWeight: 'bold' }}> - </span>
                     <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
-                    <br />
+            
             <button className="submit-btn" onClick={handleSubmit} disabled={submitDisabled}>
                 {submitLabel}
             </button>

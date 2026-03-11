@@ -1,22 +1,57 @@
+/* Mirror the #groups container exactly to get the same scroll, radius, and color */
 .event-sidebar-container {
-  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #f9f9fb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  
+  /* Flexbox settings for the inner form */
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  background-color: #f4f5f7;
-  border-left: 1px solid #e5e5e5;
 }
 
+/* Give the title some breathing room */
+.event-sidebar-container h2 {
+  margin-top: 5px;
+  margin-bottom: 15px;
+}
+
+/* Make labels left-aligned and bold */
+.event-sidebar-container label {
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  color: #2d3436;
+}
+
+/* Force all inputs and selects to fill the width, just like the group rows */
+.event-sidebar-container input[type="text"],
+.event-sidebar-container input[type="date"],
+.event-sidebar-container input[type="time"],
+.event-sidebar-container select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #e5e5e5;
+  font-family: inherit;
+}
+
+/* The Toggle Buttons at the top */
 .mode-toggle {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 15px;
+  width: 100%;
 }
 
-.event-sidebar-container label {
-  margin-right: 10px;
-  font-weight: bold;
+.mode-toggle button {
+  flex: 1; /* Makes both buttons take up equal half-width */
+  padding: 8px;
 }
 
 #blockingBtn {
@@ -25,29 +60,50 @@
 }
 
 #petitionBtn {
-  background-color:#ffa963;
+  background-color: #ffa963;
   color: white;
 }
 
-.submit-btn {
-    background-color: #00b894;
-    color: white;
+/* The Time row needs to sit side-by-side */
+#timeEntry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
 }
 
-.priority-select-dropdown {
-  margin-top: 6px;
-  margin-bottom: 8px;
-  min-width: 180px;
+/* Mirror the Create Group button from groups.css */
+.submit-btn {
+  background-color: #00b894;
+  color: white;
+  width: 100%;
+  font-size: 1rem;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  margin-top: 20px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .preflight-message {
   min-height: 18px;
   margin: 6px 0 4px;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: #4b5563;
 }
 
 .preflight-error {
-  color: #b42318;
+  color: #d63031; /* Matched the red from groups.css */
   font-weight: 600;
 }
