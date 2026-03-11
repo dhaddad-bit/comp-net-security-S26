@@ -25,7 +25,8 @@ export default function CalendarEventBlock({
   effectiveAvailabilityView, 
   onEventClick, 
   onTooltipEnter, 
-  onTooltipLeave 
+  onTooltipLeave,
+  onCellClick
 }) {
   // If this is a heatmap block where literally nobody is available, don't even render a DOM element.
   if (event.mode === 'avail' && event.availLvl === 0) return null;
@@ -146,8 +147,28 @@ export default function CalendarEventBlock({
     // Prevent the click from "bubbling up" to the empty calendar cell
     e.stopPropagation(); 
     
-    if (event.mode === 'petition' || isRegularEventClickable) {
-      onEventClick(event);
+    if (event.mode === 'avail') {
+      if (onCellClick) {
+        // 1. Find exactly where the mouse clicked within the block
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickY = e.clientY - rect.top; // Pixels from top of the event block
+        
+        // 2. Find what percentage down the block the user clicked
+        const percentDown = clickY / rect.height;
+        
+        // 3. Translate that percentage into actual time
+        const durationMs = event.end.getTime() - event.start.getTime();
+        const clickedTimeMs = event.start.getTime() + (durationMs * percentDown);
+        const exactClickedDate = new Date(clickedTimeMs);
+        
+        // 4. Pass the EXACT calculated date and hour back up to the parent!
+        onCellClick(exactClickedDate, exactClickedDate.getHours());
+      }
+    } else if (event.mode === 'petition' || isRegularEventClickable) {
+      // It's a normal/blocking/petition event, so open the Event details Modal
+      if (onEventClick) {
+        onEventClick(event);
+      }
     }
   };
 

@@ -335,7 +335,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
                   // Fire the handler when the empty cell is clicked
                   onClick={() => onCellClick && onCellClick(day, hour)}
                     
-                  // NEW: Allow things to be dropped here
+                  // Allow things to be dropped here
                   onDragOver={(e) => e.preventDefault()} 
                   
                   // Handle the math when the draft block is dropped
@@ -387,6 +387,11 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
                         legendMaxCount={legendMaxCount}
                         effectiveAvailabilityView={effectiveAvailabilityView}
                         onEventClick={handleEventClick}
+
+                        onCellClick={(overrideDay, overrideHour) => 
+                          onCellClick && onCellClick(overrideDay || day, overrideHour ?? hour)
+                        }
+
                         onTooltipEnter={(mouseEvent, count) => setAvailabilityTooltip({ count, x: mouseEvent.clientX + 12, y: mouseEvent.clientY + 10 })}
                         onTooltipLeave={() => setAvailabilityTooltip(null)}
                       />
