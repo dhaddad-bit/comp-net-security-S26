@@ -177,7 +177,7 @@ html, body, #root {
   font-weight: bold;
   position: sticky;
   top: 0;
-  z-index: 150;
+  z-index: 60;
   padding: 12px 8px;
   background-color: #f4f5f7;
   border-bottom: 1px solid #d9dee6;
@@ -193,7 +193,7 @@ html, body, #root {
 .time-label {
   height: 100%;
   left: 0;
-  z-index: 140;
+  z-index: 59;
   height: 100%;
   box-sizing: border-box;
   text-align: right;
@@ -232,7 +232,7 @@ html, body, #root {
 }
 
 .calendar-event:hover {
-  z-index: 100 !important; 
+  /* z-index: 100 !important;  */
   border: 2px solid #ffffff;
   padding: 5px 5px;
 }
@@ -395,10 +395,3 @@ button:disabled {
   border-radius: 8px;
 }
 
-.time-label {
-  z-index: 9;
-}
-
-.day-header {
-  z-index: 10;
-}
