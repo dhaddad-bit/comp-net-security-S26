@@ -74,6 +74,13 @@ export default function Main() {
             endTime: `${endHour}:00`
         });
 
+        setEventMode(targetMode);
+
+        // instantly auto-fill the dropdown with that group's ID!
+        if (selectedGroupId) {
+            setPetitionGroupId(selectedGroupId);
+        }
+
         // If the sidebar is closed, snap it open!
         if (!isEventSidebarOpen) {
             setIsEventSidebarOpen(true);
@@ -353,7 +360,7 @@ export default function Main() {
             <main className="main-layout">
                 {/* The Groups sidebar. */}
                 {isGroupsSidebarOpen && (
-                    <ResizableSidebar side="left" defaultWidth={320} minWidth={250} maxWidth={600} className="groups-sidebar">
+                    <ResizableSidebar side="left" defaultWidth={320} minWidth={250} maxWidth={600} className="main-sidebar">
                         <Groups
                             selectedGroupId={selectedGroupId}
                             onSelectGroup={(id) => setSelectedGroupId(id == null ? null : Number(id))}
@@ -378,7 +385,7 @@ export default function Main() {
 
                 {/* The Event sidebar, which is used for both creating and editing events. */}
                 {isEventSidebarOpen && (
-                    <ResizableSidebar side="right" defaultWidth={350} minWidth={280} maxWidth={600} className="event-sidebar">
+                    <ResizableSidebar side="right" defaultWidth={350} minWidth={280} maxWidth={600} className="main-sidebar">
                         <EventSidebar 
                             setDraftEvent={setDraftEvent}
                             mode={eventMode}

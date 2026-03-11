@@ -206,7 +206,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
   // 2. Filter the backend blocks against the user's personal calendar
   const projectedAvailability = filterAvailabilityAgainstPersonalEvents(
       rawProjectedAvailability, 
-      finalRawEvents, 
+      rawEvents, 
       effectiveAvailabilityView
   );
 
@@ -231,6 +231,39 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
 
   // Finally, run all arrays through the core date processor to handle midnight splits
   const allEvents = processEvents(finalRawEvents).concat(processEvents(groupAvailability), processEvents(visiblePetitions));
+
+  // --- NEW: CARD STACK OVERLAP LOGIC ---
+  // 1. Sort all events chronologically. 
+  // If they start at the exact same time, force the green 'avail' blocks to be processed first.
+  allEvents.sort((a, b) => {
+    if (a.start.getTime() !== b.start.getTime()) {
+      return a.start.getTime() - b.start.getTime();
+    }
+    if (a.mode === 'avail' && b.mode !== 'avail') return -1;
+    if (a.mode !== 'avail' && b.mode === 'avail') return 1;
+    return 0;
+  });
+
+  // 2. Loop through and tag overlapping personal/petition events
+  let currentOverlapIndex = 0;
+  for (let i = 0; i < allEvents.length; i++) {
+    // Never shift the green background heatmap blocks
+    if (allEvents[i].mode === 'avail') {
+      allEvents[i].overlapIndex = 0;
+    } else {
+      // If this event starts at the exact same time as the PREVIOUS regular event, stack it!
+      if (i > 0 && 
+          allEvents[i].start.getTime() === allEvents[i-1].start.getTime() && 
+          allEvents[i-1].mode !== 'avail'
+      ) {
+        currentOverlapIndex++;
+      } else {
+        currentOverlapIndex = 0; // Reset for a new time block
+      }
+      allEvents[i].overlapIndex = currentOverlapIndex;
+    }
+  }
+  // -------------------------------------
 
   // Build the array of 7 days for the column headers
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -308,8 +341,9 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
       <div className="calendar-grid-shell">
         <div className="calendar-grid">
           
-          {/* Top-Left empty sticky corner */}
-          <div className="corner-cell"></div>
+          {/* Stella - I changed this to be just another day header,
+              when scrolling horizontally this went on top of the other cells!*/}
+          <div className="day-header"></div>
           
           {/* Top sticky column headers (Mon, Tue, Wed...) */}
           {days.map((day, i) => (
@@ -333,7 +367,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
                   key={i} 
                   className={`calendar-cell${isSameLocalDay(day, today) ? ' is-today' : ''}`}
                   // Fire the handler when the empty cell is clicked
-                  onClick={() => onCellClick && onCellClick(day, hour)}
+                  onClick={() => onCellClick && onCellClick(day, hour, 'blocking')}
                     
                   // Allow things to be dropped here
                   onDragOver={(e) => e.preventDefault()} 
@@ -389,7 +423,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
                         onEventClick={handleEventClick}
 
                         onCellClick={(overrideDay, overrideHour) => 
-                          onCellClick && onCellClick(overrideDay || day, overrideHour ?? hour)
+                          onCellClick && onCellClick(overrideDay || day, overrideHour ?? hour, 'petition')
                         }
 
                         onTooltipEnter={(mouseEvent, count) => setAvailabilityTooltip({ count, x: mouseEvent.clientX + 12, y: mouseEvent.clientY + 10 })}

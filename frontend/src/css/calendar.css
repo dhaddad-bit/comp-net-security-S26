@@ -222,7 +222,7 @@ html, body, #root {
   color: white;
   font-size: 12px;
   line-height: 1.25;
-  padding: 5px 5px;
+  padding: 6px 6px;
   box-sizing: border-box;
   z-index: 10;
   border-radius: 6px;
@@ -232,8 +232,9 @@ html, body, #root {
 }
 
 .calendar-event:hover {
-  z-index: 15 !important; 
+  z-index: 100 !important; 
   border: 2px solid #ffffff;
+  padding: 5px 5px;
 }
 
 .availability-tooltip {
@@ -283,7 +284,6 @@ button:disabled {
 
 .calendar-event.petition-event {
   font-weight: 600;
-  border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .calendar-event.petition-event.petition-open {
