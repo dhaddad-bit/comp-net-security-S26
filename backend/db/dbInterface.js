@@ -174,7 +174,7 @@ const addEvents = async(cal_id, events, priority=3) => {
             ON CONFLICT DO NOTHING`,
             [
                 cal_id,
-                priority, // TODO: make this events[i].priority
+                events[i].priority, // TODO: make this events[i].priority
                 events[i].start,
                 events[i].end,
                 events[i].title,
