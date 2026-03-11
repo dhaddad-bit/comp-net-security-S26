@@ -31,31 +31,33 @@ function UserSearch({ onUserSelect }) {
 
     return (
         <div className="user-search">
-        <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search users..."
-        />
-        
-        {suggestions.length > 0 && (
-            <ul className="suggestions">
-                {suggestions.map(user => (
-                    <li className="suggestion"
-                    key={user.id}
-                    onClick={() => {
-                        onUserSelect(user);
-                        setQuery('');
-                        setSuggestions([]);
-                    }}
-                    >
-                    {user.username}
-                    </li>
-                ))}
-            </ul>
-        )}
-        
-        {isLoading && <div>Searching...</div>}
+            <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search users by name..."
+            />
+            
+            {/* The new floating dropdown menu */}
+            {suggestions.length > 0 && (
+                <ul className="search-dropdown-menu">
+                    {suggestions.map(user => (
+                        <li 
+                            className="search-dropdown-item"
+                            key={user.id}
+                            onClick={() => {
+                                onUserSelect(user);
+                                setQuery('');
+                                setSuggestions([]);
+                            }}
+                        >
+                            {user.username}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            
+            {isLoading && <div className="search-loading-text">Searching...</div>}
         </div>
     );
 }
