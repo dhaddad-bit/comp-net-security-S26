@@ -21,7 +21,7 @@ async function main() {
   // Important: require(".") exercises this package's "exports" mapping.
   // In production (Render), backend code can do: require("./algorithm")
   // and get the CommonJS wrapper.
-  const alg = require(".");
+  const alg = require("../index.cjs");
 
   const base = Date.UTC(2026, 0, 1, 10, 0, 0, 0);
   const oneMin = 60 * 1000;

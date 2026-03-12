@@ -1,13 +1,22 @@
-/**
- * types/algorithm_types.js
- *
+/*
+File: algorithm_types.js
+Purpose:
  * This file is intentionally boring: it's the shared contract between:
  *   - whatever builds ParticipantSnapshot[] (Google fetch, DB snapshot, etc.)
  *   - the algorithm module (pure compute)
  *   - the UI (renders blocks / heatmaps)
  *
  * Keeping the contract stable is the whole point.
- */
+Creation Date: 2026-02-19
+Author(s): David Haddad
+
+System Context:
+ * Defines the shared type and semantics contract for the availability pipeline.
+ * Adapter and data-fetch layers shape raw events to match these structures,
+ * algorithm.js computes results against this contract, and downstream API/UI layers
+ * consume the resulting availability blocks using the same field definitions.
+
+*/
 
 /** Default block size (minutes) for "heatmap" blocks. */
 const DEFAULT_G_MINUTES = 15;

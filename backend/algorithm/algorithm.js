@@ -1,6 +1,6 @@
-/**
- * algorithm.js
- *
+/*
+File: algorithm.js
+Purpose: 
  * Goal:
  *   - Stay PURE (no DB, no API calls, no timezones, no “Google weirdness” here)
  *   - Take ParticipantSnapshot[] + a window => produce AvailabilityBlock[] (or the multi-view form)
@@ -15,9 +15,16 @@
  *   - B3 view counts only B3 events
  *   - B2 view counts B2+B3
  *   - B1 view counts B1+B2+B3
- *
- * That lines up with “petition priority” pretty directly.
- */
+ * 
+Creation Date: 2026-02-02
+Author(s): David Haddad
+
+System Context:
+ * Core compute layer for availability scoring. This module is intentionally pure and receives
+ * normalized participant event snapshots from adapter/controller layers, then returns deterministic
+ * time blocks for single-view or multi-view (Strict/Flexible/Lenient) availability rendering.
+ * It is consumed by backend availability routes/services and indirectly powers frontend heatmap views.
+*/
 
 // Trying to work with whatever module system backend is using (CommonJS or ESM). If this causes issues, we can adjust.
 const { DEFAULT_G_MINUTES, BlockingLevel } = require('./algorithm_types.js');

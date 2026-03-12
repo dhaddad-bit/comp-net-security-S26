@@ -1,4 +1,4 @@
-const { fetchAndMapGroupEvents, mapDatabaseRowsToParticipants } = require('./algorithm_adapter');
+const { fetchAndMapGroupEvents, mapDatabaseRowsToParticipants } = require('../algorithm_adapter');
 
 describe('algorithm_adapter', () => {
     test('normalizes blocking levels from SQL rows and defaults invalid values to B3', () => {

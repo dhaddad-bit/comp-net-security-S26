@@ -1,9 +1,18 @@
-/**
- * algorithmAdapter.js
+/*
+File: algorithm_adapter.js
+Purpose:
  * * Goal: Bridge the gap between the PostgreSQL database and the pure math algorithm.
  * This file handles the dirty work: SQL queries, raw data formatting, and 
  * mapping flat rows into the nested ParticipantSnapshot structure.
- */
+Creation Date: 2026-02-19
+Author(s): David Haddad
+
+System Context:
+ * Sits between persistence and computation layers for group availability. It fetches raw event rows
+ * from PostgreSQL, normalizes blocking levels and event timestamps (including all-day corrections),
+ * and converts flat query results into ParticipantSnapshot[] input expected by algorithm.js.
+
+*/
 
 // Map DB priority integers to the algorithm's BlockingLevel strings
 const priorityMapping = {
@@ -12,6 +21,13 @@ const priorityMapping = {
     3: "B3"
 };
 
+/**
+ * This translates the blocking level string to only be uppercase, in case
+ * of any mismatch between uppercase and lowercase
+ * 
+ * @param {string} level 
+ * @returns {string} -- normalized string or "B3"
+ */
 function normalizeBlockingLevel(level) {
     const normalized = typeof level === "string" ? level.trim().toUpperCase() : "";
     if (normalized === "B1" || normalized === "B2" || normalized === "B3") {
@@ -20,10 +36,15 @@ function normalizeBlockingLevel(level) {
     return "B3";
 }
 
-// -- GARRETT IS MAKING CHANGES
 /**
  * Detects all-day events and snaps them to the user's LOCAL midnight 
  * by mathematically extracting their timezone offset from the windowStartMs.
+ * 
+ * @param {Number} startMs - start time in milliseconds
+ * @param {Number} endMs - end time in milliseconds
+ * @param {Number} windowStartMs
+ * @returns {Object} - object with the adjusted start and end times based on
+ *      timezone offset
  */
 function adjustIfAllDay(startMs, endMs, windowStartMs) {
     const start = new Date(startMs);
@@ -34,7 +55,7 @@ function adjustIfAllDay(startMs, endMs, windowStartMs) {
     const isEndMidnightUTC = end.getUTCHours() === 0 && end.getUTCMinutes() === 0;
 
     if (isStartMidnightUTC && isEndMidnightUTC) {
-        // MAGIC TRICK: Extract the user's exact offset from their local midnight timestamp
+        // Extract the user's exact offset from their local midnight timestamp
         let offsetMs = windowStartMs % (24 * 60 * 60 * 1000);
         
         // If the remainder is > 12 hours, the user is in the Eastern Hemisphere (ahead of UTC)
@@ -51,11 +72,9 @@ function adjustIfAllDay(startMs, endMs, windowStartMs) {
     return { adjustedStartMs: startMs, adjustedEndMs: endMs };
 }
 
-// -- GARRETT IS DONE MAKING CHANGES
-
 /**
  * Transforms flat SQL rows into the nested array required by the algorithm.
- * * @param {Array} dbRows - Flat array of objects from Postgres
+ * @param {Array} dbRows - Flat array of objects from Postgres
  * @returns {Array} Array of ParticipantSnapshot objects
  */
 function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
@@ -64,7 +83,7 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
     for (const row of dbRows) {
         const { user_id, event_start, event_end } = row;
 
-        // 1. Ensure the user exists in the map (even if they have no events)
+        // Ensure the user exists in the map (even if they have no events)
         if (!participantMap.has(user_id)) {
             participantMap.set(user_id, {
                 userId: user_id,
@@ -72,13 +91,10 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
             });
         }
 
-        // 2. If the LEFT JOIN returned an actual event, format and push it
+        // If the LEFT JOIN returned an actual event, format and push it
         if (event_start && event_end) {
             const levelFromSql = normalizeBlockingLevel(row.blocking_level);
             const levelFromPriority = priorityMapping[row.priority] || "B3";
-            
-
-            // GARRETT IS ADDING CODE
 
                 // Extract raw epoch milliseconds
                 const rawStartMs = new Date(event_start).getTime();
@@ -93,19 +109,6 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
                     // Prefer blocking_level from SQL; fallback to priority for compatibility.
                     blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
                 });
-
-            // DAVID'S ORIGINAL CODE START
-            /*
-            participantMap.get(user_id).events.push({
-                startMs: new Date(event_start).getTime(),
-                endMs: new Date(event_end).getTime(),
-                // Prefer blocking_level from SQL; fallback to priority for compatibility.
-                blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
-            });
-            */
-            // DAVID'S ORIGINAL CODE END
-
-            // GARRETT IS DONE ADDING CODE
         }
     }
 
@@ -115,7 +118,8 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
 
 /**
  * Fetches group events and formats them for the algorithm.
- * * @param {Object} db - Your PostgreSQL connection pool
+ * 
+ * @param {Object} db - Your PostgreSQL connection pool
  * @param {number|string} groupId - The ID of the group
  * @param {number} windowStartMs - Epoch timestamp for the start of the search window
  * @param {number} windowEndMs - Epoch timestamp for the end of the search window

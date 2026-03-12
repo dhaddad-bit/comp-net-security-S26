@@ -13,12 +13,12 @@ const {
   computeAvailabilityBlocks, 
   computeAvailabilityBlocksAllViews, 
   toSingleViewBlocks 
-} = require('./algorithm.js');
+} = require('../algorithm.js');
 
 const { 
   DEFAULT_G_MINUTES, 
   BlockingLevel 
-} = require('./algorithm_types.js');
+} = require('../algorithm_types.js');
 
 /** @typedef {import("./types/algorithm_types.js").ParticipantSnapshot} ParticipantSnapshot */
 
