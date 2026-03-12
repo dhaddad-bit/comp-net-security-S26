@@ -1,9 +1,12 @@
-// --- calendarConstants.js ---
 /*
-  This file is purely for configuration. 
-  If you ever want to change a color, 
-  tweak an opacity, or add a new availability mode, 
-  you do it here
+File: CalendarConstants.jsx 
+Purpose: This file is purely for configuration. If you ever want to change a color, 
+        tweak an opacity, or add a new availability mode, you do it here.
+Creation Date: 2026-03-09
+Initial Authors(s): Garret Caldwell
+
+System Context:
+Global variables that are used to handle availability ui.
 */
 
 // The different modes the algorithm can use to calculate group availability

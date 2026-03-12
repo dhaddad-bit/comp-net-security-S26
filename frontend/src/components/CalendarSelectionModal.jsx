@@ -1,15 +1,32 @@
 /*
-CalendarSelectionModal.jsx
-Provides the modal to select calendars after users have submitted a valid username
-Created on 2026-3-6 by Anna Norris
-Presented on login page for onboarding
+File: CalendarSelectionModal.jsx
+Purpose: Provides the modal to select calendars after users 
+        have submitted a valid username
+Creation Date: 2026-03-06
+Author(s): Anna Norris
+
+System Context:
+Presented on login page for onboarding, selected calendars are
+used in endpoints to synchronize user's calendars.
 */
 
 import React from 'react';
 import '../css/calendarSelectModal.css';
 
-// modal view for users selecting calendars after creating a valid username
-// inherits whether it is opened and functions to facillitate calendar selection
+/**
+ * Renders onboarding modal for selecting which calendars to import.
+ *
+ * @param {object} props - Component props.
+ * @param {boolean} props.isOpen - Controls whether the modal is visible.
+ * @param {Array<{id: string|number, displayName: string}>} props.calendars - List of available calendars.
+ * @param {Array<{id: string|number}>} props.selectedCals - Currently selected calendars.
+ * @param {Function} props.onSelectCalendar - Called with a calendar when a checkbox is toggled.
+ * @param {Function} props.onConfirm - Called when user confirms calendar choices.
+ * @param {Function} props.onBack - Called when user returns to previous onboarding step.
+ * @param {boolean} props.isLoading - Disables actions while onboarding requests are in progress.
+ * @param {string[]} props.errors - Validation or API errors to display inside the modal.
+ * @returns {JSX.Element|null} Calendar selection modal markup, or null when closed.
+ */
 export default function CalendarSelectionModal({ 
     isOpen, 
     calendars, 

@@ -1,14 +1,22 @@
-// --- calendarUtils.js ---
-
 /*
-This file contains the "Business Logic". 
-These are pure JavaScript functions 
-that crunch dates and numbers
+File: calendarUtils.js
+Purpose: This file contains the "Business Logic". These are pure JavaScript functions 
+        that crunch dates and numbers
+Creation date: 2026-03-09
+Author(s): Garrett Caldwell
+
+System Context:
+Used to format the datetime for rendering on the calendar
 */
 
 import { BLOCKING_LEVELS, AVAILABILITY_MIN_OPACITY, AVAILABILITY_MAX_OPACITY, DAY_MS } from './calendarConstants';
 
-// Takes a Date object and rewinds it to the Sunday of that specific week at exactly 12:00 AM
+/**
+ * Takes a Date object and rewinds it to the Sunday of that specific week at exactly 12:00 AM
+ * 
+ * @param {Date} date
+ * @returns {Date} -- Previous Sunday of day given
+ */
 export function getStartOfWeek(date) {
   const d = new Date(date);
   // getDay() returns 0 for Sunday, 1 for Monday, etc. 
@@ -19,7 +27,12 @@ export function getStartOfWeek(date) {
   return d;
 }
 
-// Checks if the user is currently viewing the present week
+/**
+ * Checks if the user is currently viewing the present week
+ * 
+ * @param {Date} date 
+ * @returns {Boolean} -- True if current week, False if not
+ */
 export function isCurrentWeek(date) {
   const today = new Date();
   const currWeekStart = getStartOfWeek(today);
@@ -27,14 +40,26 @@ export function isCurrentWeek(date) {
   return date.getTime() === currWeekStart.getTime();
 }
 
-// Checks if two Date objects fall on the exact same calendar day
+/**
+ * Checks if two Date objects fall on the exact same calendar day
+ * 
+ * @param {Date} left 
+ * @param {Date} right
+ * @returns {Boolean} -- Same day
+ */
 export function isSameLocalDay(left, right) {
   return left.getFullYear() === right.getFullYear()
     && left.getMonth() === right.getMonth()
     && left.getDate() === right.getDate();
 }
 
-// Generates the human-readable text for the top of the calendar (e.g., "March 2 - 8, 2026")
+/**
+ * Generates the human-readable text for the top of the calendar (e.g., "March 2 - 8, 2026")
+ * 
+ * @param {Date} start 
+ * @param {Date} end 
+ * @returns {string} -- String displaying the week range
+ */
 export function formatWeekRange(start, end) {
   // Guard clause: If dates are invalid, return an empty string
   if (!Number.isFinite(start?.getTime?.()) || !Number.isFinite(end?.getTime?.())) return '';
@@ -58,7 +83,14 @@ export function formatWeekRange(start, end) {
   return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`;
 }
 
-// Generates an HSL (Hue, Saturation, Lightness) green color that gets darker as availability goes up
+
+/**
+ * Generates an HSL (Hue, Saturation, Lightness) green color that gets darker as availability goes up
+ * 
+ * @param {number} availableCount -- integer count
+ * @param {number} maxVisibleCount  -- integer count
+ * @returns {string} -- formatted string with values for sat, light
+ */
 export function getAvailabilityColor(availableCount, maxVisibleCount) {
   // If no one is free, make it completely invisible
   if (availableCount <= 0) return 'transparent';
@@ -75,7 +107,14 @@ export function getAvailabilityColor(availableCount, maxVisibleCount) {
   return `hsl(145, ${saturation}%, ${lightness}%)`;
 }
 
-// Determines how see-through the green block should be based on availability
+
+/**
+ * Determines how see-through the green block should be based on availability
+ * 
+ * @param {number} availableCount -- integer count
+ * @param {number} maxVisibleCount -- integer count
+ * @returns {number} -- opacity
+ */
 export function getAvailabilityOpacity(availableCount, maxVisibleCount) {
   if (availableCount <= 0) return 0;
   if (maxVisibleCount <= 1) return AVAILABILITY_MAX_OPACITY;
@@ -84,12 +123,23 @@ export function getAvailabilityOpacity(availableCount, maxVisibleCount) {
   return AVAILABILITY_MIN_OPACITY + ((AVAILABILITY_MAX_OPACITY - AVAILABILITY_MIN_OPACITY) * t);
 }
 
-// Simple grammar formatter for the hover tooltip
+/**
+ * Simple grammar formatter for the hover tooltip
+ * 
+ * @param {number} count 
+ * @returns {boolean}
+ */
 export function formatAvailabilityTooltip(count) {
   return count === 1 ? '1 person available' : `${count} people available`;
 }
 
-// Determines if an event spans across midnight into the next day
+/**
+ * Determines if an event spans across midnight into the next day
+ * 
+ * @param {Date} start 
+ * @param {Date} end 
+ * @returns {boolean}
+ */
 export function spansMultipleLocalDays(start, end) {
   if (!Number.isFinite(start?.getTime?.()) || !Number.isFinite(end?.getTime?.()) || end <= start) return false;
   // Subtract 1 millisecond from the end time so an event ending exactly at 12:00 AM isn't counted as an extra day
@@ -99,33 +149,67 @@ export function spansMultipleLocalDays(start, end) {
     || start.getDate() !== inclusiveEnd.getDate();
 }
 
-// Flag to visually fade out all-day or multi-day events so they don't block the screen
+/**
+ * Flag to visually fade out all-day or multi-day events so they don't block the screen
+ * 
+ * @param {Event} event 
+ * @returns {boolean}
+ */
 export function shouldDeEmphasizeEventSegment(event) {
   return event?.mode !== 'avail' && (event?.isAllDay);
 }
 
-// Regex check to see if a string is strictly "YYYY-MM-DD"
+/**
+ * Regex check to see if a string is strictly "YYYY-MM-DD"
+ * 
+ * @param {string} value 
+ * @returns {boolean}
+ */
 export function isDateOnlyText(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-// Checks if a date object is exactly 12:00:00.000 AM
+/**
+ * Checks if a date object is exactly 12:00:00.000 AM
+ * 
+ * @param {Date} date 
+ * @returns {boolean}
+ */
 export function isLocalMidnight(date) {
-  return Number.isFinite(date?.getTime?.()) && date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
+  return Number.isFinite(date?.getTime?.()) 
+    && date.getHours() === 0 && date.getMinutes() === 0 
+    && date.getSeconds() === 0 && date.getMilliseconds() === 0;
 }
 
-// Converts a date into an absolute number of days since the Unix Epoch
+/**
+ * Converts a date into an absolute number of days since the Unix Epoch
+ * 
+ * @param {Date} date 
+ * @returns {number}
+ */
 export function getLocalCalendarDayNumber(date) {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
 }
 
-// Checks if an event perfectly covers 1 or more full days (12am to 12am)
+/**
+ * Checks if an event perfectly covers 1 or more full days (12am to 12am)
+ * 
+ * @param {Date} start 
+ * @param {Date} end 
+ * @returns {boolean}
+ */
 export function isWholeLocalDayRange(start, end) {
   if (!Number.isFinite(start?.getTime?.()) || !Number.isFinite(end?.getTime?.()) || end <= start) return false;
   return isLocalMidnight(start) && isLocalMidnight(end) && getLocalCalendarDayNumber(end) > getLocalCalendarDayNumber(start);
 }
 
-// Safely extracts the availability numbers based on whether the user selected Strict, Flexible, etc.
+/**
+ * Safely extracts the availability numbers based on whether the user selected Strict, Flexible, etc.
+ * 
+ * @param {Object} block 
+ * @param {string} viewKey -- availability view key
+ * @returns {Object}
+ */
 export function getViewStatsFromBlock(block, viewKey) {
   if (!block || typeof block !== 'object') return { availableCount: 0, totalCount: 0 };
   
@@ -145,7 +229,12 @@ export function getViewStatsFromBlock(block, viewKey) {
   return { availableCount, totalCount };
 }
 
-// Standardizes database integers (1, 2, 3) into the B1, B2, B3 format
+/**
+ * Standardizes database integers (1, 2, 3) into the B1, B2, B3 format
+ * 
+ * @param {Event} event 
+ * @returns {string} -- the blocking level 
+ */
 export function normalizeBlockingLevelFromEvent(event) {
   const rawLevel = typeof event?.blockingLevel === 'string' ? event.blockingLevel.trim().toUpperCase() : '';
   if ([BLOCKING_LEVELS.B1, BLOCKING_LEVELS.B2, BLOCKING_LEVELS.B3].includes(rawLevel)) return rawLevel;
@@ -155,14 +244,25 @@ export function normalizeBlockingLevelFromEvent(event) {
   return BLOCKING_LEVELS.B3; // Default to hardest block if unknown
 }
 
-// Logic deciding if a personal event should physically render on top of the green heatmap
+/**
+ * Logic deciding if a personal event should physically render on top of the green heatmap
+ * 
+ * @param {string} view 
+ * @param {string} blockingLevel 
+ * @returns {boolean}
+ */
 export function shouldRenderRegularEventAboveAvailability(view, blockingLevel) {
   if (view === 'StrictView') return true; // In strict view, ALL personal events cover the heatmap
   if (view === 'FlexibleView') return blockingLevel === BLOCKING_LEVELS.B2 || blockingLevel === BLOCKING_LEVELS.B3;
   return blockingLevel === BLOCKING_LEVELS.B3; // In lenient view, only Hard Blocks cover the heatmap
 }
 
-// Converts a string "YYYY-MM-DD" into a local 12:00 AM Date object
+/**
+ * Converts a string "YYYY-MM-DD" into a local 12:00 AM Date object
+ * 
+ * @param {string} dateInput 
+ * @returns {Date}
+ */
 export function parseLocalDateOnly(dateInput) {
   if (typeof dateInput === 'string' && dateInput.length === 10) {
     const [y, m, d] = dateInput.split('-').map(Number);
@@ -171,19 +271,34 @@ export function parseLocalDateOnly(dateInput) {
   return new Date(NaN);
 }
 
-// Ensures input is converted to a Date object
+/**
+ * Ensures input is converted to a Date object
+ * 
+ * @param {string} dateInput 
+ * @returns {Date}
+ */
 export function parseEventInstant(dateInput) {
   return new Date(dateInput);
 }
 
-// Strips the time off an ISO string, returning just the date
+/**
+ * Strips the time off an ISO string, returning just the date
+ * 
+ * @param {string} dateInput 
+ * @returns {string} -- parsed date
+ */
 export function formatUtcDateOnly(dateInput) {
   const parsed = parseEventInstant(dateInput);
   if (!Number.isFinite(parsed.getTime())) return '';
   return parsed.toISOString().slice(0, 10);
 }
 
-// Unifies how dates are handled, regardless of whether they are full timestamps or just string dates
+/**
+ * Unifies how dates are handled, regardless of whether they are full timestamps or just string dates
+ * 
+ * @param {Event} event 
+ * @returns {Object} -- {start: Date, end: Date, isAllDay: boolean, spansMultipleDays: boolean}
+ */
 export function normalizeEventRange(event) {
   const hasDateOnlyInputs = isDateOnlyText(event?.start) && isDateOnlyText(event?.end);
   
@@ -200,7 +315,12 @@ export function normalizeEventRange(event) {
   return { start, end, isAllDay: isWholeLocalDayRange(start, end), spansMultipleDays: spansMultipleLocalDays(start, end) };
 }
 
-// THE MOST IMPORTANT FUNCTION: Chops multi-day events into individual blocks exactly at midnight
+/**
+ * THE MOST IMPORTANT FUNCTION: Chops multi-day events into individual blocks exactly at midnight
+ * 
+ * @param {Array} rawEvents 
+ * @returns {Array}
+ */
 export function processEvents(rawEvents) {
   if (!Array.isArray(rawEvents)) return [];
   const processed = [];
@@ -243,7 +363,13 @@ export function processEvents(rawEvents) {
   return processed;
 }
 
-// Optimizes the heatmap by merging adjacent 15-minute blocks that have the exact same availability score
+/**
+ * Optimizes the heatmap by merging adjacent 15-minute blocks that have 
+ * the exact same availability score
+ * 
+ * @param {Array} blocks 
+ * @returns {Array}
+ */
 export function mergeAvailabilityBlocks(blocks) {
   if (!blocks || blocks.length === 0) return [];
   
@@ -277,7 +403,14 @@ export function mergeAvailabilityBlocks(blocks) {
   return merged;
 }
 
-// Translates a backend database Petition row into an object our calendar UI understands
+/**
+ * Translates a backend database Petition row into an object our calendar UI understands
+ * 
+ * @param {Object} petition 
+ * @param {string|null} activeGroupId 
+ * @param {Date} weekStart 
+ * @returns {Object}
+ */
 export function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
   if (!petition) return null;
   
@@ -326,13 +459,19 @@ export function mapPetitionToCalendarEvent(petition, activeGroupId, weekStart) {
   };
 }
 
-// --- Add this to the bottom of calendarUtils.js ---
-
+/**
+ * Applies personal-event blocking rules to projected group availability blocks.
+ *
+ * @param {Array} projectedAvailability -- availability blocks produced for heatmap rendering.
+ * @param {Array<Object>} rawEvents -- raw calendar events
+ * @param {string} effectiveAvailabilityView -- active availability mode key.
+ * @returns {Array<Object>} -- availability blocks
+ */
 export function filterAvailabilityAgainstPersonalEvents(projectedAvailability, rawEvents, effectiveAvailabilityView) {
   if (!projectedAvailability || projectedAvailability.length === 0) return [];
   if (!rawEvents || rawEvents.length === 0) return projectedAvailability;
 
-  // 1. Extract the exact start and end times of all personal events strong enough to block availability
+  // Extract the exact start and end times of all personal events strong enough to block availability
   const blockingRanges = rawEvents.reduce((acc, event) => {
       // Ignore other heatmap blocks or petitions
       if (event.mode === 'avail' || event.mode === 'petition') return acc;
@@ -349,7 +488,7 @@ export function filterAvailabilityAgainstPersonalEvents(projectedAvailability, r
       return acc;
   }, []);
 
-  // 2. Map over the backend's availability blocks
+  // Map over the backend's availability blocks
   return projectedAvailability.map(block => {
       if (block.availLvl === 0) return block; // Already empty, skip it
       

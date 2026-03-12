@@ -28,11 +28,7 @@ export default function Login() {
   // Handles users logging in or creating an account, first page users will see
   const [errorMsg, setErrorMsg] = useState('');
 
-  /**
-   * Reads auth error query params once on mount and surfaces permission guidance.
-   *
-   * @returns {void}
-   */
+  // Reads auth error query params once on mount and surfaces permission guidance.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
@@ -43,11 +39,7 @@ export default function Login() {
   }, []);
 
 
-    /**
-     * Redirects the user to the backend Google OAuth start endpoint.
-     *
-     * @returns {void}
-     */
+    // Redirects the user to the backend Google OAuth start endpoint.
     const handleLogin = () => {
       // fix localhost redirect issues with different frontend/backend ports
       const baseURL = process.env.BACKEND_URL || '';

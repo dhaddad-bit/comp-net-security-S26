@@ -1,15 +1,19 @@
-// --- CustomCalendar.jsx ---
-
 /*
-  The Orchestrator. 
-  It fetches the data, merges it together, 
-  and maps over it to render the UI grid. 
-  By moving all the logic out to 
-  calendarUtils.js, this file is strictly 
-  focused on React State and the DOM.
+File: CustomCalendar.jsx
+Purpose: fetches the data, merges it together, and maps over it to render the UI grid. 
+        By moving all the logic out to calendarUtils.js, this file is strictly 
+        focused on React State and the DOM.
+Creation date: 2026-02-18
+Author(s): Garrett Caldwell
+
+Significant Changes:
+    Parts of Custom calendar was significantly refactored for workability and
+    separate concerns for developers.
+System Context:
+Uses calendarUtils to render the calendar that user sees on main page, the main
+page that ties other calendar compoenents together
 */
 
-// --- CustomCalendar.jsx ---
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet } from '../../api';
@@ -29,6 +33,18 @@ import {
 import CalendarEventBlock from './CalendarEventBlock';
 import EventClickModal from './EventClickModal';
 
+/**
+ * Fetches data and renders it on a UI grid using React states
+ * 
+ * @param {number} refreshTrigger - whether calendar should refresh
+ * @param {string|number} groupId - 
+ * @param {Array} draftEvents
+ * @param {function} onCellClick
+ * @param {function} onDraftDrop
+  *@returns {JSX.Element} -- a weekly calendar grid displaying personal events, group availability
+  *   heatmap, petition blocks, and an availability legend, with modals for event
+  *   details and petition actions.
+ */
 export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, onCellClick, onDraftDrop }) {
   // --- APPLICATION STATE ---
   const [weekStart, setWeekStart] = useState(getStartOfWeek(new Date()));
@@ -66,8 +82,9 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
     if (Array.isArray(personalEvents)) setRawEvents(personalEvents);
   };
 
-  // EFFECT 1: Fetch Personal Events on load, or when the week/refreshTrigger changes
+  // Fetch Personal Events on load, or when the week/refreshTrigger changes
   useEffect(() => {
+    // Loads personal events and updates state
     const fetchPersonalEvents = async () => {
       setLoading(true);
       try {
@@ -87,10 +104,11 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
     fetchPersonalEvents();
   }, [weekStart, refreshTrigger]); 
 
-  // EFFECT 2: Fetch Group Heatmap Data when a group is selected
+  // Fetch Group Heatmap Data when a group is selected
   useEffect(() => {
     let isCancelled = false; // Flag for cleanup
 
+    // fetch group events and wipe if no group events
     const fetchGroupEvents = async () => {
       // If no group is selected, wipe the heatmap and exit
       if (!groupId || groupId === 0) {
@@ -138,15 +156,16 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
     return () => { isCancelled = true; };
   }, [refreshTrigger, groupId, weekStart]);
 
-  // EFFECT 3: Fetch Current User details for Petitions
+  // Fetch Current User details for Petitions
   useEffect(() => {
     apiGet('/api/me')
       .then(res => setCurrentUserId(res?.user?.user_id ? Number(res.user.user_id) : null))
       .catch(() => setCurrentUserId(null));
   }, []);
 
-  // EFFECT 4: Fetch Petitions 
+  // Fetch Petitions 
   useEffect(() => {
+    // fetch all petitions that would be visible to user in week
     const fetchVisiblePetitions = async() => {
       // If looking at a group, fetch just that group's petitions. Otherwise, fetch all.
       const endpoint = groupId ? `/api/groups/${groupId}/petitions` : '/api/petitions';
@@ -170,11 +189,13 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
 
   // --- EVENT HANDLERS ---
   
+  // Ignores view change when no group is selected or view is not recognized
   const handleAvailabilityViewChange = (viewKey) => {
     if (!selectedGroupKey || !AVAILABILITY_VIEWS.includes(viewKey)) return;
     setAvailabilityViewByGroup((currentMap) => ({ ...currentMap, [selectedGroupKey]: viewKey }));
   };
 
+  // handles which modal to open, petition or basic event, when user clicks on event
   const handleEventClick = (event) => {
     if (event.mode === 'petition') {
       setSelectedPetition(event);
@@ -184,6 +205,7 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
     }
   };
 
+  // handles user navigating next and previous weeks
   const handleNextWeek = () => setWeekStart(new Date(weekStart.setDate(weekStart.getDate() + 7)));
   const handlePrevWeek = () => setWeekStart(new Date(weekStart.setDate(weekStart.getDate() - 7)));
 
@@ -193,19 +215,22 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
   const finalRawEvents = [...rawEvents];
   if (draftEvent) finalRawEvents.push({ ...draftEvent });
 
+  // Checks if user has multiple availability blocks
   const hasMultiViewAvailability = rawAvailabilityBlocks.some(
     b => b && typeof b.views === 'object' && b.views !== null
   );
+
+  // Chooses either the selected availability view or fallback view if needed
   const effectiveAvailabilityView = hasMultiViewAvailability && AVAILABILITY_VIEWS.includes(selectedAvailabilityView)
     ? selectedAvailabilityView : FALLBACK_VIEW;
 
-  // 1. Process the raw backend blocks
+  // Process the raw backend blocks
   const rawProjectedAvailability = (groupId ? rawAvailabilityBlocks : []).map((block, i) => {
     const { availableCount } = getViewStatsFromBlock(block, effectiveAvailabilityView);
     return { title: '', availLvl: availableCount, start: block.start, end: block.end, event_id: `avail-${i}`, mode: 'avail' };
   });
 
-  // 2. Filter the backend blocks against the user's personal calendar
+  // Filter the backend blocks against the user's personal calendar
   const projectedAvailability = filterAvailabilityAgainstPersonalEvents(
       rawProjectedAvailability, 
       rawEvents, 

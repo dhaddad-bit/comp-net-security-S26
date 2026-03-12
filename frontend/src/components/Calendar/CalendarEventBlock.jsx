@@ -1,12 +1,15 @@
-// --- CalendarEventBlock.jsx ---
-
 /*
-  This component calculates exactly where 
-  an event should sit on the screen. 
-  It uses percentages so that if a 
-  user opens the app on an iPhone or 
-  drags their desktop window smaller, 
-  the events scale perfectly with the grid.
+File: CalendarEventBlock.jsx
+Purpose: This component calculates exactly where an event should sit on the screen. 
+        It uses percentages so that if a user opens the app on an iPhone or 
+        drags their desktop window smaller, the events scale perfectly with the grid.
+Creation date: 2026-03-09
+Author(s): Garrett Caldwell
+
+System Context:
+Renders calendar event blocks used in calendar,
+handles the behavior for various types of events and petitions
+as well as availability heatmap
 */
 
 import React from 'react';
@@ -19,6 +22,21 @@ import {
   shouldDeEmphasizeEventSegment 
 } from './calendarUtils';
 
+/**
+ * Renders a single calendar event block with computed layout, z-layering, and
+ * behavior for normal events, blocking events, petitions, availability heatmap,
+ * and draft-preview drag interactions.
+ *
+ * @param {object} props - Component props.
+ * @param {object} props.event - Normalized event object with time range, mode, and display metadata.
+ * @param {number} props.legendMaxCount - Maximum availability count used to scale heatmap color/opacity.
+ * @param {string} props.effectiveAvailabilityView - Active availability rendering mode.
+ * @param {Function} [props.onEventClick] - Called with the event when a clickable event is selected.
+ * @param {Function} [props.onTooltipEnter] - Called on availability hover/move to update tooltip position/content.
+ * @param {Function} [props.onTooltipLeave] - Called when availability hover ends.
+ * @param {Function} [props.onCellClick] - Called with computed date/hour when an availability block is clicked.
+ * @returns {JSX.Element|null} Rendered event block, or null for zero-availability heatmap blocks.
+ */
 export default function CalendarEventBlock({ 
   event, 
   legendMaxCount, 
@@ -147,6 +165,12 @@ export default function CalendarEventBlock({
     event.className || ''
   ].filter(Boolean).join(' ');
 
+  /**
+   * Handles click behavior for availability and standard event blocks.
+   *
+   * @param {React.MouseEvent<HTMLDivElement>} e - Click event from the rendered event block.
+   * @returns {void}
+   */
   const handleEventClickInner = (e) => {
     // Prevent the click from "bubbling up" to the empty calendar cell
     e.stopPropagation(); 

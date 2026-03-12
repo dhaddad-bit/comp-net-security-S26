@@ -1,15 +1,27 @@
-// --- EventClickModal.jsx ---
-
 /*
-  This handles the popup when a user clicks 
-  a personal event to change its priority or 
-  delete it. Keeping it separate makes the 
-  main calendar file much easier to read.
+File: EventClickModal.jsx
+Purpose: This handles the popup when a user clicks a personal event to change its priority or 
+        delete it. Keeping it separate makes the main calendar file much easier to read.
+Creation date: 2026-03-09
+Author(s): Garrett Caldwell
+
+System Context:
+Part of frontend calendar system. Rendered by CustomCalendar upon user clicking
+on an event on the custom calendar.
 */
 
 import React, { useState } from 'react';
 import { apiPost } from '../../api';
 
+/**
+ * 
+ * @param {Event} event 
+ * @param {Function} onClose
+ * @param {Function} onRefresh
+ * @returns {@JSX.Element} -- a modal that appears when clicking on an event rendered on 
+ *    custom calendar that allows user to delete and change priority level for a single
+ *    event or all events of the same name
+ */
 export default function EventClickModal({ event, onClose, onRefresh }) {
   // Extract priority, defaulting to 1 (Low) if it's missing or corrupted
   const initialPriority = Number.isFinite(Number(event?.priority)) ? Number(event.priority) : 1;
@@ -23,6 +35,7 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
   // should this apply to duplicate events
   const [applyToAll, setApplyToAll] = useState(false);
 
+  // handles the user changing blocking level of events
   // Fires when the user clicks "Save Changes"
   const handleSave = async () => {
     setInlineError('');
@@ -48,6 +61,7 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
     }
   };
 
+  // handles user deleting event(s)
   // Fires when the user clicks "Delete Event"
   const handleDelete = async () => {
     const confirmMessage = applyToAll 

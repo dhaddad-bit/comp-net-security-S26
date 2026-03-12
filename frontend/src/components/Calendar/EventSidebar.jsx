@@ -1,7 +1,20 @@
+/*
+File:
+Purpose: This allows the user to handle both creating custom time
+        blocks and petitions. User can open or close the sidebar.
+Creation date: 2026-02-21
+Author(s): Garrett Caldwell
+
+System Context:
+Part of frontend system. Clicking a button on main component
+to open this sidebar.
+*/
+
 import React, { useState, useEffect } from 'react';
 import '../../css/eventSidebar.css';
 import { apiGetWithMeta, apiPost, apiPostWithMeta } from '../../api.js';
 
+// days of week for repeating events
 const DAYS_OF_WEEK = [
     { label: 'S', value: 0 },
     { label: 'M', value: 1 },
@@ -12,6 +25,20 @@ const DAYS_OF_WEEK = [
     { label: 'S', value: 6 }
 ];
 
+/**
+ * 
+ * @param {Funciton} setDraftEvent
+ * @param {Function} onFinalize
+ * @param {string} mode
+ * @param {Function} setMode
+ * @param {string|number} petitionGroupId
+ * @param {Function} setPetitionGroupId
+ * @param {Array} groupsList
+ * @param {Date} clickedCellDetails
+ * @returns {@JSX.Element} -- Opens a sidebar that lets user create new events or
+ *      create petitions for certain groups. Users can name and specify the exact time
+ *      for the event, as well as create repeating events
+ */
 export default function EventSidebar({ 
     setDraftEvent, 
     onFinalize,
@@ -104,6 +131,7 @@ export default function EventSidebar({
         return () => { cancelled = true; };
     }, [mode, petitionGroupId]);
 
+    // set the times based on selected cell details
     useEffect(() => {
         if (clickedCellDetails) {
             setDate(clickedCellDetails.date);
@@ -115,12 +143,14 @@ export default function EventSidebar({
         }
     }, [clickedCellDetails]);
 
+    // adds or removes weekday value in recurring-event selection
     const toggleDay = (val) => {
         setSelectedDays(prev => 
             prev.includes(val) ? prev.filter(d => d !== val) : [...prev, val].sort()
         );
     };
 
+    // handles submission of event creation and upon success, resets the form
     const handleSubmit = async () => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle || !date || !startTime || !endTime) {

@@ -74,13 +74,7 @@ export default function Main() {
     const { setError } = useContext(ErrorContext);
 
 
-    /**
-     * Handles calendar cell selection and pre-fills event form values.
-     *
-     * @param {Date} clickedDate - Date value for the selected calendar cell.
-     * @param {number} hour - Hour-of-day (0-23) selected in the calendar grid.
-     * @returns {void}
-     */
+    // Handles calendar cell selection and pre-fills event form values
     const handleCalendarCellClick = (clickedDate, hour) => {
 
         // Format the date as YYYY-MM-DD
@@ -114,14 +108,7 @@ export default function Main() {
         }
     };
 
-    /**
-     * Repositions the in-progress draft event and syncs sidebar form fields.
-     *
-     * @param {Date} droppedDate - Target date where the draft event was dropped.
-     * @param {number} startHour - New start hour for the draft event.
-     * @param {number} startMin - New start minute for the draft event.
-     * @returns {void}
-     */
+    // Repositions the in-progress draft event and syncs sidebar form fields.
     const handleDraftDrop = (droppedDate, startHour, startMin) => {
         if (!draftEvent) return;
 
@@ -155,11 +142,7 @@ export default function Main() {
         });
     };
 
-    /**
-     * Loads calendar events from the backend and triggers a calendar refresh.
-     *
-     * @returns {Promise<void>} Resolves after the fetch attempt and refresh handling.
-     */
+    //Loads calendar events from the backend and triggers a calendar refresh.
     const fetchEvents = async () => {
         try {
             // get events from endpoint
@@ -173,11 +156,7 @@ export default function Main() {
         }
     }
 
-    /**
-     * Loads the current user's groups and stores them in local state.
-     *
-     * @returns {Promise<void>} Resolves after group state is updated or reset on error.
-     */
+    // Loads the current user's groups and stores them in local state.
     const fetchGroups = async () => {
         try {
             // Hit the ACTUAL endpoint
@@ -198,11 +177,7 @@ export default function Main() {
         }
     };
 
-    /**
-     * Fetches any pending invite associated with the current user session.
-     *
-     * @returns {Promise<void>} Resolves after pending invite state is set or cleared.
-     */
+    // Fetches any pending invite associated with the current user session.
     const fetchPendingInvite = async () => {
         try {
             // find if user has a pending invite
@@ -221,11 +196,7 @@ export default function Main() {
         }
     };
 
-    /**
-     * Logs out the current user and redirects to logout/login routes.
-     *
-     * @returns {Promise<void>} Resolves when logout flow and redirect decision are complete.
-     */
+    // Logs out the current user and redirects to logout/login routes.
     const handleLogout = async () => {
         try {
             await apiPost('/logout'); 
@@ -235,11 +206,7 @@ export default function Main() {
         }
     };
 
-    /**
-     * Retrieves the authenticated user's profile and stores display username.
-     *
-     * @returns {Promise<void>} Resolves after username state is updated.
-     */
+    // Retrieves the authenticated user's profile and stores display username.
     const fetchUsername = async () => {
         try {
             // get username and set it to display
@@ -252,11 +219,7 @@ export default function Main() {
         }
     };
 
-    /**
-     * Initial data bootstrap effect for username, events, groups, and pending invites.
-     *
-     * @returns {void}
-     */
+    // fetch all user info needed to display on main page
     useEffect(() => {
         fetchUsername();
         fetchEvents();
@@ -264,12 +227,7 @@ export default function Main() {
         fetchPendingInvite();
     }, []);
 
-
-    /**
-     * Clears transient draft UI state when the event sidebar closes.
-     *
-     * @returns {void}
-     */
+    // Clears any non-finalized event upon sidebar closing
     useEffect(() => {
         // Automatically clear the ghost draft event if the sidebar gets closed
         if (!isEventSidebarOpen) {
@@ -278,30 +236,17 @@ export default function Main() {
         }
     }, [isEventSidebarOpen]);
 
-    /**
-     * Toggles the groups sidebar open/closed state.
-     *
-     * @returns {void}
-     */
+    // Toggles the groups sidebar open/closed state.
     const toggleGroupsSidebar = () => {
         setIsGroupsSidebarOpen(!isGroupsSidebarOpen);
     }
 
-    /**
-     * Toggles the event sidebar open/closed state.
-     *
-     * @returns {void}
-     */
+    // Toggles the event sidebar open/closed state.
     const toggleEventSidebar = () => {
         setIsEventSidebarOpen(!isEventSidebarOpen);
     }
 
-    /**
-     * Submits an invitation response and updates invite/group state accordingly.
-     *
-     * @param {'accept'|'decline'} decision - User's invitation decision.
-     * @returns {Promise<void>} Resolves after API processing and UI state updates.
-     */
+    // Submits an invitation response and updates invite/group state accordingly.
     const handleInviteDecision = async (decision) => {
         setInviteActionLoading(true);
         setInviteError('');
@@ -327,12 +272,7 @@ export default function Main() {
         }
     };
     
-    /**
-     * Opens petition creation flow for a selected group and syncs dependent state.
-     *
-     * @param {number|string} groupId - Group identifier to associate with the petition.
-     * @returns {Promise<void>} Resolves after state synchronization and sidebar transitions.
-     */
+    // Opens petition creation flow for a selected group and syncs dependent state.
     const handleOpenPetition = async (groupId) => {
         // Keep petition target and rendered availability group in sync.
         await fetchGroups();
@@ -344,11 +284,7 @@ export default function Main() {
         setIsEventSidebarOpen(true);   // Open event sidebar
     };
 
-    /**
-     * Synchronizes calendar data and forces a calendar refresh regardless of API outcome.
-     *
-     * @returns {Promise<void>} Resolves after sync attempt and refresh signal update.
-     */
+    // Synchronizes calendar data and forces a calendar refresh regardless of API outcome.
     const handleSyncCals = async () => {
         try {
             await apiGet('/api/events');

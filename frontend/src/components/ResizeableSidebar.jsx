@@ -1,12 +1,29 @@
 /*
-ResizeableSidebar.jsx
-Allows user to grow or shrink sidebar, mainly for usability purposes
-on smaller screen size
-Created on 2026-3-10 by Garrett Caldwell
+File: ResizeableSidebar.jsx
+Purpose: takes side ('left'|'right'), defaultWidth, minWidth, maxWidth, optional className, 
+        and children, and outputs an <aside> container that renders those children 
+        inside a vertically scrollable area with a draggable resize handle 
+        that constrains width between min/max bounds on smaller screen size
+Creation Date: 2026-03-10 
+Author(s): Garrett Caldwell
+
+System Context: Used on sidebars to adjust their width.
 */
 
 import React, { useState, useEffect, useRef } from 'react';
 
+/**
+ * Wraps sidebar content in a horizontally resizable container with drag handles.
+ *
+ * @param {object} props - Component props.
+ * @param {'left'|'right'} [props.side='left'] - Side the sidebar is anchored to.
+ * @param {number} [props.defaultWidth=320] - Initial sidebar width in pixels.
+ * @param {number} [props.minWidth=250] - Minimum allowed width while dragging.
+ * @param {number} [props.maxWidth=600] - Maximum allowed width while dragging.
+ * @param {React.ReactNode} props.children - Sidebar content to render.
+ * @param {string} [props.className=''] - Additional CSS classes applied to the aside.
+ * @returns {JSX.Element} Resizable sidebar container with optional left/right drag handle.
+ */
 export default function ResizableSidebar({ 
     side = 'left', 
     defaultWidth = 320, 
@@ -15,12 +32,6 @@ export default function ResizableSidebar({
     children,
     className = ''
 }) {
-    /*
-    takes side ('left'|'right'), defaultWidth, minWidth, maxWidth, optional className, 
-    and children, and outputs an <aside> container that renders those children 
-    inside a vertically scrollable area with a draggable resize handle 
-    that constrains width between min/max bounds.
-    */
     const [isResizing, setIsResizing] = useState(false);
     const sidebarRef = useRef(null);
     const dragData = useRef({ startX: 0, startWidth: 0 });
@@ -28,6 +39,12 @@ export default function ResizableSidebar({
     // NEW: We use this to throttle the browser repaints
     const requestRef = useRef();
 
+    /**
+     * Starts resize mode and stores initial drag coordinates/width.
+     *
+     * @param {React.MouseEvent<HTMLDivElement>} e - Mouse down event from resize handle.
+     * @returns {void}
+     */
     const handleMouseDown = (e) => {
         setIsResizing(true);
         dragData.current = {
@@ -36,7 +53,18 @@ export default function ResizableSidebar({
         };
     };
 
+    /**
+     * Attaches/removes global mouse listeners while resizing and applies width updates.
+     *
+     * @returns {void}
+     */
     useEffect(() => {
+        /**
+         * Computes and applies new sidebar width during mouse drag.
+         *
+         * @param {MouseEvent} e - Global mouse move event.
+         * @returns {void}
+         */
         const handleMouseMove = (e) => {
             if (!isResizing) return;
             
@@ -58,6 +86,11 @@ export default function ResizableSidebar({
             });
         };
 
+        /**
+         * Stops resize mode and cancels any pending animation frame.
+         *
+         * @returns {void}
+         */
         const handleMouseUp = () => {
             setIsResizing(false);
             if (requestRef.current) cancelAnimationFrame(requestRef.current);

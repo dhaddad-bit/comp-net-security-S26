@@ -1,7 +1,7 @@
 /*
 File: App.jsx
 Purpose: Determines which top-level screen to render (login, username creation,
-main app, or server error) based on authenticated user state and global errors.
+        main app, or server error) based on authenticated user state and global errors.
 Creation Date: 2026-02-12
 Initial Author(s): Anna Norris
 
@@ -47,17 +47,9 @@ function AppContent() {
     const [user, setUser] = useState(null);
     const { error, setError } = useContext(ErrorContext);
 
-    /**
-     * Loads current user once and updates local/auth error state.
-     *
-     * @returns {void}
-     */
+    // Loads current user once and updates local/auth error state.
     useEffect(() => {
-        /**
-         * Fetches `/api/me` and stores the authenticated user payload.
-         *
-         * @returns {Promise<void>} Resolves after user loading and loading-state cleanup.
-         */
+        // Fetches `/api/me` and stores the authenticated user payload.
         const checkUser = async () => {
             try {
                 const data = await apiGet('/api/me');
