@@ -165,9 +165,7 @@ const getCalendarsByUserID = async(user_id) => {
 }
 
 const addEvents = async(cal_id, events, priority=3) => {
-    for (let i = 0; i < events.length; i++) {
-        // TODO: consider the logic for doing nothing -> might want to update instead? 
-        // added event id to query, some function is server expected it
+    for (let i = 0; i < events.length; i++) { 
         await pool.query(
             `INSERT INTO cal_event (calendar_id, priority, event_start, event_end, event_name, gcal_event_id)
             VALUES ($1, $2, $3, $4, $5, $6)

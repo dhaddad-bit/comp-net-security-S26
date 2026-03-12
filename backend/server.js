@@ -1,21 +1,40 @@
 /*
-  server.js
-  this is the central Express backend that manages 
-  auth/sessions, API routes, calendar/event operations, 
-  and serves the React app.
-*/
+File: server.js
+Purpose: this is the central Express backend that manages 
+    auth/sessions, API routes, calendar/event operations, 
+    and serves the React app.
+Date Created: 2026-02-03
+Author(s): Stella Greenvoss, heavily edited by all developers
+ 
+System Context:
+ Acts as the main backend entry point for the application. It configures Express middleware,
+session persistence, Google OAuth authentication, calendar synchronization routes, group and
+petition-related APIs, and fallback serving of the built React frontend for authenticated users.
+ */
 
+// Express framework for middleware registration, API routing, and static asset serving.
 const express = require('express');
+
+// CORS middleware for local development requests from the frontend dev server.
 const cors = require('cors'); // gemini assisted fix for CORS issues
+
+// Google APIs client for OAuth authentication, user profile lookup, and calendar sync.
 const { google } = require('googleapis');
+
+// Node built-ins for CSRF state generation, static path resolution, and OAuth callback query parsing.
 const crypto = require('crypto');
 const path = require("path");
+const url = require('url');
+
+// Middleware for signed cookies and persisted session management.
 const cookieParser = require("cookie-parser");
 // Local imports for DB and email and groups
-const db = require("./db/dbInterface");
+
 const session = require('express-session');
-const url = require('url');
 const pgSession = require('connect-pg-simple')(session);
+
+// Local modules for database access, email utilities, group routes, petition helpers, and event normalization.
+const db = require("./db/dbInterface");
 const email = require('./emailer'); 
 const groupModule = require("./groups");
 const petitionRoutes = require("./routes/petition_routes");
@@ -25,10 +44,6 @@ const { normalizeCalendarEvent } = require("./calendar_event_normalizer");
 require('dotenv').config({
   path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
 });
-console.log("Database URL Check:", process.env.DATABASE_URL ? "Found it!" : "It is UNDEFINED");
-
-console.log("ENV:", process.env.NODE_ENV);
-console.log("Frontend URL:", process.env.FRONTEND_URL);
 
 const frontend = process.env.FRONTEND_URL;
 const app = express();
@@ -85,6 +100,10 @@ const PORT = process.env.PORT || 3000;
 // ===================PAGES========================
 
 
+/**
+ * Root page route that serves the built React app for authenticated users
+ * and redirects unauthenticated users to the login page.
+ */
 app.post('/', (req, res) => {
   if (typeof req.session.userId !== "undefined") {
     res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
@@ -93,11 +112,18 @@ app.post('/', (req, res) => {
   }
 });
 
+/**
+ * Login page route that serves the frontend entry point so the React app can
+ * render the login experience client-side.
+ */
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
 });
 
 // ===================API=====================
+/**
+ * Returns the authenticated user's database record, or `null` when no session exists.
+ */
 app.get('/api/me', async (req, res) => {
 
   if (req.session.userId) {
@@ -110,6 +136,9 @@ app.get('/api/me', async (req, res) => {
   }
 });
 
+/**
+ * Creates or updates the authenticated user's username after validating format and uniqueness.
+ */
 app.post('/api/create-username', async (req, res) => {
   /*
   const username = req.body.username
@@ -147,6 +176,9 @@ app.post('/api/create-username', async (req, res) => {
   }
 });
 
+/**
+ * Saves the calendars selected during onboarding to the authenticated user's account.
+ */
 app.post('/api/select-calendars', async (req, res) => {
   try {
 
@@ -167,6 +199,9 @@ app.post('/api/select-calendars', async (req, res) => {
   }
 });
 
+/**
+ * Logs the current user out by destroying the active session.
+ */
 app.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -176,7 +211,9 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Database test route
+/**
+ * Diagnostic route for testing database connectivity in development or debugging scenarios.
+ */
 app.get('/api/test-db', async (req, res) => {
   try {
     const result = await testConnection();
@@ -189,11 +226,17 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
-// Health check
+/**
+ * Lightweight health-check route used to verify that the backend is running.
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
+/**
+ * Starts the Google OAuth flow by generating a state token and redirecting the user
+ * to Google's authorization screen.
+ */
 app.get('/auth/google', async (req, res) => {
 // Generate a secure random state value.
 
@@ -215,6 +258,10 @@ app.get('/auth/google', async (req, res) => {
   res.redirect(authorizationUrl);
 });
 
+/**
+ * Handles the Google OAuth callback, exchanges the authorization code for tokens,
+ * stores or updates the user record, and creates the authenticated session.
+ */
 app.get('/oauth2callback', async (req, res) => {
   const q = url.parse(req.url, true).query;
 
@@ -297,6 +344,9 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
+/**
+ * Debug route for inspecting the current Express session contents.
+ */
 app.get('/test-session', (req, res) => {
   res.json({
     sessionID: req.sessionID,
@@ -306,6 +356,14 @@ app.get('/test-session', (req, res) => {
   });
 });
 
+/**
+ * Ensures the authenticated user's Google access token is available and refreshes it if needed.
+ * Sends an auth-related response when refresh fails in a way that should stop route execution.
+ *
+ * @param {Object} req - Express request object containing session data
+ * @param {Object} res - Express response object used for auth failure responses
+ * @returns {Promise<boolean>} True when the token is valid or refreshed successfully; otherwise false
+ */
 async function ensureValidToken(req, res) {
   const user = await db.getUserByID(req.session.userId);
   
@@ -375,6 +433,10 @@ async function ensureValidToken(req, res) {
   }
 }
 
+/**
+ * Synchronizes Google Calendar events into the local database and returns normalized events
+ * for the authenticated user.
+ */
 app.get("/api/events", async (req, res) => {
   try {
     const isValid = await ensureValidToken(req, res);
@@ -541,6 +603,9 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
+/**
+ * Returns normalized calendar events from the local database without triggering a Google sync.
+ */
 app.get('/api/get-events', async (req, res) => {
   try {
     if (!req.session.userId || !req.session.isAuthenticated) {
@@ -589,6 +654,9 @@ app.get('/api/get-events', async (req, res) => {
   }
 })
 
+/**
+ * Adds one or more events to the authenticated user's primary application calendar.
+ */
 app.post("/api/add-events", async (req, res) => {
   try {
     const { events } = req.body;
@@ -621,6 +689,9 @@ app.post("/api/add-events", async (req, res) => {
   }
 });
 
+/**
+ * Updates the blocking priority for a single event or all matching events with the same title.
+ */
 app.post('/api/change-blocking-lvl', async (req, res) => {
   try {
     // Extract the new variables we added in the frontend
@@ -656,6 +727,9 @@ app.post('/api/change-blocking-lvl', async (req, res) => {
   }
 });
 
+/**
+ * Deletes a single event identified by its Google Calendar event ID.
+ */
 app.post('/api/delete-event', async (req, res) => {
   try {
     const { event_id } = req.body;
@@ -671,6 +745,9 @@ app.post('/api/delete-event', async (req, res) => {
   }
 });
 
+/**
+ * Deletes all events for the authenticated user that share a given title.
+ */
 app.post('/api/delete-events-by-title', async (req, res) => {
     try {
         // Assuming your auth middleware puts the user ID in req.user or req.session
@@ -693,7 +770,17 @@ app.post('/api/delete-events-by-title', async (req, res) => {
     }
 });
 
+/**
+ * Legacy-compatible petition creation endpoint that normalizes older payload shapes,
+ * validates access, and creates a petition for a group.
+ */
 app.post("/api/add-petition", async (req, res) => {
+  /**
+   * Normalizes legacy blocking-level payload values into the petition system's expected format.
+   *
+   * @param {string|number|null|undefined} rawValue - Blocking level value from a legacy request payload
+   * @returns {string|number|undefined} Normalized blocking value, original raw value, or undefined when missing
+   */
   function normalizeLegacyBlockingLevel(rawValue) {
     if (rawValue == null) return undefined;
 
@@ -704,6 +791,13 @@ app.post("/api/add-petition", async (req, res) => {
     return rawValue;
   }
 
+  /**
+   * Converts older petition payload shapes into the normalized structure used by petition parsing.
+   * Supports legacy field names and legacy `events[0]` payloads.
+   *
+   * @param {Object} body - Raw request body from the legacy petition endpoint
+   * @returns {{groupId: *, title: *, start: *, end: *, blocking_level: *}} Normalized legacy petition payload
+   */
   function normalizeLegacyPetitionPayload(body) {
     const firstEvent = Array.isArray(body?.events) ? body.events[0] : null;
 
@@ -783,6 +877,9 @@ app.post("/api/add-petition", async (req, res) => {
   }
 });
 
+/**
+ * Development test route for sending a sample group-request email.
+ */
 app.get('/api/email-send-test', async(req,res) => {
   try {
     email.groupRequest("sgreenvoss@gmail.com", "stellag",
@@ -795,6 +892,9 @@ app.get('/api/email-send-test', async(req,res) => {
   }
 });
 
+/**
+ * Searches for users matching the provided query string.
+ */
 app.get('/api/users/search', async(req, res) => {
   const {q} = req.query;
   try {
@@ -806,6 +906,9 @@ app.get('/api/users/search', async(req, res) => {
   }
 });
 
+/**
+ * Fetches the authenticated user's available Google calendars.
+ */
 app.get('/api/calendars', async (req, res) => {
   try {
     const isValid = await ensureValidToken(req, res);
@@ -842,11 +945,16 @@ app.get('/api/calendars', async (req, res) => {
   // algorithm.js
   // algolrithm_types.js
 const availabilityController = require('./availability_controller');
-// This one line tells Express: 
-// "When someone hits this URL, hand the request over to the Controller"
+
+/**
+ * Delegates group availability requests to the availability controller.
+ */
 app.get('/api/groups/:groupId/availability', availabilityController.getAvailability);
 
-// Catch-all for unmatched routes - serve React app
+/**
+ * Catch-all route for unmatched requests that serves the React app to authenticated users
+ * and redirects unauthenticated users to the login page.
+ */
 app.use((req, res) => {
   if (req.session.userId) {
     res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
@@ -855,6 +963,12 @@ app.use((req, res) => {
   }
 });
 
+/**
+ * Verifies startup prerequisites and starts the Express server.
+ * Ensures petition schema dependencies exist before accepting requests.
+ *
+ * @returns {Promise<void>} Resolves after startup completes, or exits the process on fatal initialization failure
+ */
 async function startServer() {
   console.log("[Startup] Verifying petition schema...");
   try {
