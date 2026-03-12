@@ -1,8 +1,34 @@
+/*
+File: GroupInfo.jsx
+Purpose: Modal component for displaying group information, member list, and invitation link generation
+Date Created: 2026-02-24
+Author(s): Garrett Caldwell
+
+System Context: Renders as an overlay modal displaying group details (name, members) 
+and providing functionality to generate shareable invite links for adding new members 
+to the group. Integrates with the groups API for fetching member 
+lists and creating invite tokens.
+
+*/
+
+// React imports - useState for UI state (members, loading, invite link, copy feedback), useEffect for async data loading
 import React, { useState, useEffect } from 'react';
+
+// API utilities - apiGet and apiPost for backend group and invite token requests
 import { apiGet, apiPost } from '../../api.js';
-// Reuse the same modal CSS you already have
+
+// CSS - groupsModal.css provides standard modal styling (overlay, content container, buttons, form inputs)
 import '../../css/groupsModal.css'; 
 
+/** 
+ * Reusable modal for displaying group information, members, and invitation management.
+ * Fetches group details on mount and provides copy-to-clipboard functionality for shareable invite links.
+ *
+ * @param {number} groupId - Numeric group identifier for API requests
+ * @param {string} groupName - Display name of the group for the modal title
+ * @param {function} onClose - Callback function triggered when user clicks the Close button
+ * @returns {JSX.Element} Modal overlay containing group info and invite section
+*/
 export default function GroupInfoModal({ groupId, groupName, onClose }) {
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState([]);
@@ -10,6 +36,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
     const [copyStatus, setCopyStatus] = useState("idle");
     
 
+    // Load group member list and generate invite link when component mounts or groupId changes
     useEffect(() => {
         const loadGroupDetails = async () => {
             setLoading(true);
@@ -31,6 +58,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
         }
     }, [groupId]);
 
+    // Auto-reset copy status feedback after 2 seconds (allows cutoff if user closes modal)
     useEffect(() => {
         let timeoutId;
         if (copyStatus === 'success' || copyStatus === 'error') {
@@ -43,7 +71,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
         };
     }, [copyStatus]);
 
-    // this is copied from the GroupCreator.
+    // Copy invite link to clipboard; update UI to show success/error feedback
     const handleCopyClick = async () => {
         if (!inviteLink) {
             setCopyStatus("error");
@@ -60,6 +88,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
         }
     };
 
+    // Generate a new invite link by requesting a token from the backend; prepend domain to form full URL
     const makeInviteLink = async () => {
         setCopyStatus("idle");
         const inviteResponse = await apiPost("/group/invite", {

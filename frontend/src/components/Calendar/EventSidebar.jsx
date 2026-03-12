@@ -1,5 +1,5 @@
 /*
-File:
+File: EventSidebar.jsx
 Purpose: This allows the user to handle both creating custom time
         blocks and petitions. User can open or close the sidebar.
 Creation date: 2026-02-21

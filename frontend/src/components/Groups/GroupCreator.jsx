@@ -1,19 +1,44 @@
+/*
+File: GroupCreator.jsx
+Purpose: This component handles the group creation module,
+    including searching for existing users and creating a 
+    shareable link.
+Creation date: 2026-02-16
+Author(s): Anna Norris
+
+System Context:
+Part of the frontend system. Newly created groups are shown in 
+the groups sidebar.
+*/
+
 import React, { useState, useEffect } from 'react';
 import { apiGet, apiPost, apiPostWithMeta } from '../../api.js';
 import '../../css/groupsModal.css';
 import '../../css/groups.css';
 
+/**
+ * Searchbar for existing users for user to invite to new group
+ * 
+ * @param {Function} onUserSelect -- for dropdown menu choosing users
+ * @returns {@JSX.Element} -- an input field with a dropdown menu attached
+ *      that displays any existing users based on current input, users can click
+ *      to select that user
+ */
 function UserSearch({ onUserSelect }) {
+    // for displaying suggestions on user input
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // based on query, find any users with matching substring
     useEffect(() => {
+        // only check when length is more than 2 characters
         if (query.length < 2) {
             setSuggestions([]);
             return;
         }
 
+        // set the suggestions from endpoint search
         const timer = setTimeout(async () => {
             setIsLoading(true);
             try {
@@ -62,17 +87,30 @@ function UserSearch({ onUserSelect }) {
     );
 }
 
-
+/**
+ * Modal for creating a new group and generating a shareable invite link.
+ * Allows users to enter a group name, search for and add existing users,
+ * then generates an invite link and sends it via email to selected users.
+ * 
+ * @param {Function} onClose - callback to close modal
+ * @param {*} onGroupCreated - for successful group creation
+ * @param {*} onDone - done upon group creation
+ * @returns {@JSX.Element} - modal overlay with group creation from form
+ *      or invite-link confirmation screen
+ */
 export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
+    // names
     const [groupName, setGroupName] = useState('');
     const [usernames, setUsernames] = useState([]);
     
+    // new group management
     const [groupCreated, setGroupCreated] = useState(false);
     const [inviteLink, setInviteLink] = useState("");
     const [copyStatus, setCopyStatus] = useState("idle");
     const [createError, setCreateError] = useState("");
     const [inviteError, setInviteError] = useState("");
 
+    // only try to create a group for a certain amount of time
     useEffect(() => {
         let timeoutId;
         if (copyStatus === 'success' || copyStatus === 'error') {
@@ -85,19 +123,20 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
         };
     }, [copyStatus]);
 
+    // handle the usernames user selects
     const handleUserSelect = (user) => {
-        console.log('usernames:', usernames);
         // Add user if not already in the list
         if (!usernames.some(u => u.user_id === user.user_id)) {
-            console.log("i am setting usernames.", user, usernames);
             setUsernames([...usernames, user]);
         }
     };
 
+    // handle user choosing to remove user from list
     const removeUser = (userId) => {
         setUsernames(usernames.filter(u => u.user_id !== userId));
     };
 
+    // handle user copying shareable link using button
     const handleCopyClick = async () => {
         if (!inviteLink) {
             setCopyStatus("error");
@@ -114,23 +153,26 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
         }
     };
 
+    // handle creating the group
     const handleCreate = async () => {
         setCreateError("");
         setInviteError("");
         setCopyStatus("idle");
 
+        // group must have name
         if (!groupName.trim()) {
             setCreateError("Please enter a group name.");
             return;
         }
 
         try {
+            // send signal to create group to backend
             const creationMeta = await apiPostWithMeta(`/group/creation?group_name=${encodeURIComponent(groupName)}`, {});
             const creationResponse = creationMeta.data;
 
+            // on successful group creation, change frontend display
             if (creationMeta.status === 201 && creationResponse?.success && creationResponse?.groupId) {
                 const newGroupId = creationResponse.groupId;
-                console.log("Group created! ID:", newGroupId);
                 setGroupCreated(true);
                 setInviteLink("");
                 setCreateError("");
@@ -139,15 +181,17 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
                     onGroupCreated();
                 }
 
+                // send emails to selected users
                 try {
+                    // send signal to invite users
                     const inviteResponse = await apiPost("/group/invite", {
                         group_id: newGroupId
                     });
 
+                    // set invite link and send over email
                     if (inviteResponse.invite) {
                         setInviteLink(inviteResponse.invite);
                         const me = await apiGet('/api/me');
-                        console.log("i am ", me.user.username);
                         const username = me.user.username;
                         await apiPost("/api/group/send_link_over_email", {
                             users: usernames,

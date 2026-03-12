@@ -1,22 +1,55 @@
+/*
+File: Groups.jsx
+Purpose: Main groups management section displaying user's groups 
+        with actions for viewing, creating, petitioning, and leaving
+Date Created: 2026-02-13
+Author(s): Anna Norris
+
+System Context:
+Renders a list of groups the user belongs to, with controls 
+to create new groups, view group details, open the petition workflow for a specific group, 
+and leave groups. Integrates with the groups API for fetching, creating, and leaving groups. 
+Internally manages modals for group creation and info display.
+*/
+
+// React imports - useState for modal and group state, useEffect for fetching on refresh, useContext for error handling
 import React, { useState, useEffect, useContext } from 'react';
+
+// API utilities - apiGet for fetching user groups, apiPost for leaving groups
 import { apiGet, apiPost } from '../../api.js';
+
+// Modal components - GroupCreatorModal for creating new groups, GroupInfoModal for displaying group details
 import GroupCreatorModal from './GroupCreator.jsx';
 import GroupInfoModal from './GroupInfo.jsx';
+
+// Error context - provides setError function for communicating errors to the global error handler
 import { ErrorContext } from '../../ErrorContext.jsx';
+
+// CSS stylesheets - groups.css for section and list styling, groupsModal.css for modal overlay
 import '../../css/groups.css';
 import '../../css/groupsModal.css';
 
+/**
+ * Displays the user's groups with controls for creating, viewing, petitioning, and leaving groups.
+ * Manages group list state, modal visibility, and parent-driven group selection updates.
+ *
+ * @param {Object} props - Component props
+ * @param {number|string|null} props.selectedGroupId - Currently selected group ID for active highlighting
+ * @param {function} props.onSelectGroup - Callback to notify parent of group selection changes
+ * @param {function} props.onOpenPetition - Callback to open the petition workflow for a specific group
+ * @param {number} [props.refreshSignal=0] - Refresh dependency value from parent used to refetch groups
+ * @returns {JSX.Element} Section containing the group list, action buttons, and conditional modals
+ */
 export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition, refreshSignal = 0 }) {
     const [groups, setGroups] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [infoModalGroup, setInfoModalGroup] = useState(null);
 
-    // error page handling
-    const { setError } = useContext(ErrorContext); 
+    // Global error context for displaying API errors to user
+    const { setError } = useContext(ErrorContext);
 
-    const [activeGroupID, setActiveGroupId] = useState(null);
-    // Function to fetch groups (replaces the initial apiGet)
+    // Fetch user's groups from backend and update local state; handles errors gracefully
     const fetchGroups = async () => {
         setLoading(true);
         try {
@@ -35,11 +68,12 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
         }
     };
 
-    // Load groups when component mounts and when parent asks for a refresh.
+    // Fetch groups on component mount and whenever parent sends a refresh signal (refreshSignal dependency)
     useEffect(() => {
         fetchGroups();
     }, [refreshSignal]);
 
+    // Remove user from specified group; deselect if it was the active group and refresh the list
     const handleLeaveGroup = async (groupId) => {
         console.log("leaving group", groupId);
         try {
@@ -56,11 +90,13 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
         }
     };
 
+    // Refetch groups after successful creation; modal remains open to allow user to share invite link
     const handleCreateSuccess = () => {
         // Refresh immediately after create success; modal remains open for invite sharing.
         fetchGroups();
     };
 
+    // Close the group creation modal
     const handleModalDone = () => {
         setShowModal(false);
     };
