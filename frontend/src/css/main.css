@@ -76,6 +76,12 @@ button {
   background-color: #2a7ab0;
 }
 
+#help-question {
+  background-color: white;
+  text-align: left;
+  font-size: 18px;
+}
+
 #manButtons {
   display: flex;
   justify-content: flex-end;
@@ -254,6 +260,10 @@ button:hover {
   #sidebarToggle {
     flex-wrap: wrap;
     padding: 0 12px 10px;
+  }
+
+  #help-button {
+    font-size: 14px;
   }
 }
 
