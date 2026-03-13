@@ -18,9 +18,7 @@ function iso(ms) {
 }
 
 async function main() {
-  // Important: require(".") exercises this package's "exports" mapping.
-  // In production (Render), backend code can do: require("./algorithm")
-  // and get the CommonJS wrapper.
+  // Require the CommonJS wrapper the backend server uses in production.
   const alg = require("../index.cjs");
 
   const base = Date.UTC(2026, 0, 1, 10, 0, 0, 0);
@@ -34,7 +32,7 @@ async function main() {
     { userId: "u1", events: [{ startMs: t(0), endMs: t(15), blockingLevel: "B1" }] },
     { userId: "u2", events: [{ startMs: t(0), endMs: t(15), blockingLevel: "B2" }] },
     { userId: "u3", events: [{ startMs: t(0), endMs: t(15), blockingLevel: "B3" }] },
-    // Missing blockingLevel must normalize to B3.
+    // Missing blockingLevel should fall back to the most conservative view.
     { userId: "ux", events: [{ startMs: t(0), endMs: t(15) }] },
   ];
 
@@ -103,4 +101,3 @@ main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
 });
-

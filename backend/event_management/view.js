@@ -1,3 +1,9 @@
+/*
+view.js
+Builds the response helpers for the in-memory event-management module.
+Each helper returns the payload shape the tests and controller expect.
+*/
+
 export function createEventView() {
   return {
     eventBlockAdded(event) {

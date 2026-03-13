@@ -16,7 +16,7 @@ petition-related APIs, and fallback serving of the built React frontend for auth
 const express = require('express');
 
 // CORS middleware for local development requests from the frontend dev server.
-const cors = require('cors'); // gemini assisted fix for CORS issues
+const cors = require('cors');
 
 // Google APIs client for OAuth authentication, user profile lookup, and calendar sync.
 const { google } = require('googleapis');
@@ -28,7 +28,6 @@ const url = require('url');
 
 // Middleware for signed cookies and persisted session management.
 const cookieParser = require("cookie-parser");
-// Local imports for DB and email and groups
 
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -40,7 +39,7 @@ const groupModule = require("./groups");
 const petitionRoutes = require("./routes/petition_routes");
 const { normalizeCalendarEvent } = require("./calendar_event_normalizer");
 
-// Load the .env file, determine whether on production or local dev
+// Load the environment file that matches the current runtime.
 require('dotenv').config({
   path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
 });
@@ -58,9 +57,9 @@ if (!isProduction) {
 
 app.use(express.json());
 app.use(cookieParser(process.env.SESSION_SECRET));
-app.set('trust proxy', 1); // must be set to allow render to work.
+app.set('trust proxy', 1); // Required so secure cookies behave correctly behind Render's proxy.
 
-// creates a session, store in the "session" table in the db
+// Persist Express sessions in Postgres so auth survives server restarts.
 app.use(session({
   store: new pgSession({
     pool:db.pool,
@@ -78,7 +77,7 @@ app.use(session({
   }
 }));
 
-// use the modules
+// Register the group routes before the frontend catch-all runs.
 groupModule(app);
 
 app.use(express.static(path.join(__dirname, "..", "frontend", "build")));
@@ -97,7 +96,7 @@ const scopes = [
 
 const PORT = process.env.PORT || 3000;
 
-// ===================PAGES========================
+// --- page routes ---
 
 
 /**
@@ -120,7 +119,7 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
 });
 
-// ===================API=====================
+// --- api routes ---
 /**
  * Returns the authenticated user's database record, or `null` when no session exists.
  */
@@ -140,18 +139,13 @@ app.get('/api/me', async (req, res) => {
  * Creates or updates the authenticated user's username after validating format and uniqueness.
  */
 app.post('/api/create-username', async (req, res) => {
-  /*
-  const username = req.body.username
-  db.updateUsername(req.session.userId, username) 
-  checks for uniqueness in db
-  */
-  // ensure user is already authenticated
+  // Require an authenticated session before saving a username.
   const username = req.body.username;
   if (!req.session.userId) {
       return res.json({ success: false, error: 'Not authenticated' });
   }
 
-  // backend checks if username is valid
+  // Validate the username shape before checking uniqueness.
 
   const errs = [];
   const usernameSize = /^.{4,16}$/;
@@ -166,7 +160,7 @@ app.post('/api/create-username', async (req, res) => {
     res.json({ sucesss: false, errors: errs })
   }
 
-  // ensure username is unique
+  // Only save usernames that are still available.
   const duplicate = await db.checkUsernameExists(username);
   if (!duplicate) {
     await db.updateUsername(req.session.userId, username);
@@ -187,7 +181,7 @@ app.post('/api/select-calendars', async (req, res) => {
       return res.json({ success: false, error: 'Not authenticated'});
     }
 
-    // add each calendar selected (calendars contains objects with id and summary)
+    // Save each selected calendar to the local account record.
     for (const cal of calendars) {
       await db.addCalendar(req.session.userId, cal.summary, cal.id);
     }
@@ -238,21 +232,19 @@ app.get('/health', (req, res) => {
  * to Google's authorization screen.
  */
 app.get('/auth/google', async (req, res) => {
-// Generate a secure random state value.
-
+  // Generate and save a CSRF state value for the OAuth round-trip.
   const state = crypto.randomBytes(32).toString('hex');
-  // Store state in the session
   req.session.state = state;
 
   const authorizationUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: scopes,
-    // Enable incremental authorization. Recommended as a best practice.
+    // Keep already granted scopes when the user reauthenticates.
     include_granted_scopes: true,
-    // Include the state parameter to reduce the risk of CSRF attacks.
+    // Send the CSRF state back through Google's redirect.
     state: state,
-    // Include consent to force refresh token
+    // Force the consent screen so Google sends a refresh token.
     prompt: 'consent'
   });
   res.redirect(authorizationUrl);
@@ -265,7 +257,7 @@ app.get('/auth/google', async (req, res) => {
 app.get('/oauth2callback', async (req, res) => {
   const q = url.parse(req.url, true).query;
 
-  // Security checks
+  // Stop early when Google redirects back with an OAuth error.
   if (q.error) {
     console.log(q);
     return res.redirect(frontend + '/error.html');
@@ -287,7 +279,7 @@ app.get('/oauth2callback', async (req, res) => {
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
     try {
 
-    //grab calendar info (test)
+    // Confirm calendar access before finishing the login flow.
     const responseCal = await calendar.calendarList.list({ maxResults: 10 });
 
     const calList = responseCal.data.items.map(cal => ({
@@ -305,7 +297,7 @@ app.get('/oauth2callback', async (req, res) => {
       throw error;
     }
 
-    // need to include groups ids
+    // Create or refresh the local user record before saving the session.
     const userId = await db.insertUpdateUser(
       userInfo.id,
       userInfo.email, 
@@ -333,14 +325,14 @@ app.get('/oauth2callback', async (req, res) => {
       });
     });
 
-    // Add a small delay to ensure DB write completes
+    // Give the session store a brief moment to flush before redirecting.
     await new Promise(resolve => setTimeout(resolve, 100));
     console.log('session saved, redirecting.');
     res.redirect("/");
 
   } catch (authErr) {
     console.log("authorization error: ", authErr);
-    res.redirect('/login'); // was /login fail - should we make that?
+    res.redirect('/login');
   }
 });
 
@@ -374,18 +366,16 @@ async function ensureValidToken(req, res) {
   const now = Date.now();
   const fiveMins = 5 * 60 * 1000;
   
-  // FIX 1: Use 'token_expiry' (from DB) instead of 'expiry_date'
-  // Convert to Number because DB might return it as a string
+  // Read the persisted expiry from the database and normalize it to a number.
   const expiryDate = user.token_expiry ? Number(user.token_expiry) : 0;
 
-  // FIX 2: Check if expiryDate is valid before doing math
+  // Refresh shortly before expiry so downstream Google calls stay valid.
   if (!expiryDate || now >= expiryDate - fiveMins) {
     console.log("Token expired or missing expiry. Refreshing...");
     console.log('User refresh token status:', user.refresh_token ? 'Present' : 'NULL');
 
     if (!user.refresh_token) {
-      // If we need to refresh but have no token, we must fail gracefully
-      // or rely on the caller to redirect to login.
+      // Without a refresh token, the caller has to send the user back through login.
       throw new Error('Access token expired and no refresh token available.');
     }
 
@@ -394,8 +384,8 @@ async function ensureValidToken(req, res) {
     });
 
     try {
-      // Attempt to refresh the token
-      const { credentials } = await oauth2Client.getAccessToken(); // This will trigger a refresh if needed
+      // Let the Google client refresh the access token on demand.
+      const { credentials } = await oauth2Client.getAccessToken();
       const {access_token, expiry_date} = oauth2Client.credentials;
       await db.updateTokens(
         req.session.userId,
@@ -405,31 +395,31 @@ async function ensureValidToken(req, res) {
       console.log("Token refreshed successfully.");
 
       oauth2Client.setCredentials({credentials});
-      return true; // Indicate successful refresh for route
+      return true;
 
     } catch (errRefresh) {
         if (errRefresh.response && errRefresh.response.data && errRefresh.response.data.error === 'invalid_grant') {
           console.warn("Google Refresh Token expired for user. Forcing re-authentication.", errRefresh);
-          // Destroy user's session so frontend knkows they are logged out
+          // Clear the session so the frontend sees the user as logged out.
           req.session.destroy((err) => {
             if (err) console.error("Could not destroy session after refresh failure:", err);
             return res.status(401).json({ error: "Session expired.  Please log in again." });
           });
-          return false; // Stop execution don't keep trying to fetch events.
+          return false;
         }
-        // If it is a different error, throw standard 500 error
+        // Treat other refresh failures as server errors for the calling route.
         console.error("Failed to fetch Google API data:", errRefresh);
         res.status(500).json({ error: "Internal Server Error" });
         return false;
     }
   } else {
-    // Token is still valid, just set credentials so the next call works
+    // Reuse the existing token when it is still valid.
     oauth2Client.setCredentials({
       refresh_token: user.refresh_token,
       access_token: user.access_token,
       expiry_date: expiryDate
     });
-    return true; // Token is valid, proceed with route
+    return true;
   }
 }
 
@@ -442,27 +432,26 @@ app.get("/api/events", async (req, res) => {
     const isValid = await ensureValidToken(req, res);
     if (!isValid) return;
   } catch (tokenErr) {
-      // Check if google is token is dead or not (no expiration crashing backend)
+      // Force re-login when Google rejects the stored refresh token.
       if (tokenErr.response && tokenErr.response.data && tokenErr.response.data.error === 'invalid_grant') {
         console.error("Refresh Token Expired. Forcing re-authentication.");
 
-        // Clear token from DB
+        // Clear the stored tokens before telling the client to log in again.
         await db.updateTokens(req.session.userId, null, null);
 
-        // Tell react user needs to log in again
+        // Tell the frontend the session needs a new Google login.
         return res.status(401).json({ error: "Session expired.  Please log in with Google Again." });
       }
-      // If it's a different error log it
       console.error("Failed to fetch events:", tokenErr);
       return res.status(500).json({ error: "Internal Server Error" });
   }
   
-  // Check if user is logged in
+  // Require a local authenticated session before syncing calendars.
   if (!req.session.userId || !req.session.isAuthenticated) {
     return res.status(401).json({ error: "User not authenticated" });
   }
   try {
-    // Set credentials for this specific request using session data
+    // Load the stored Google tokens for this request.
     const user = await db.getUserByID(req.session.userId);
     console.log('user in /api/events: ', user);
     if (!user || !user.refresh_token) {
@@ -480,7 +469,7 @@ app.get("/api/events", async (req, res) => {
     const calendarStart = new Date();
     calendarStart.setDate(calendarStart.getDate() - 7);
 
-    // Get all calendars saved for this user
+    // Sync every calendar the user selected during onboarding.
     const userCalendars = await db.getCalendarsByUserID(req.session.userId);
     
     if (!userCalendars || userCalendars.length === 0) {
@@ -489,7 +478,7 @@ app.get("/api/events", async (req, res) => {
 
     let allFormattedEvents = [];
 
-    // Sync events for each calendar
+    // Pull Google events one calendar at a time and mirror them locally.
     for (const userCal of userCalendars) {
       try {
         const response = await calendar.events.list({
@@ -518,7 +507,7 @@ app.get("/api/events", async (req, res) => {
           };
         });
 
-        // Process this calendar's events
+        // Compare the fresh Google rows against the local snapshot.
         const existingEvents = await db.getEventsByCalendarID(userCal.calendar_id);
         
         const existingEventIds = new Set(existingEvents.map(event => event.gcal_event_id));
@@ -532,7 +521,7 @@ app.get("/api/events", async (req, res) => {
           return !googleEventIds.has(event.gcal_event_id);
         });
 
-        // Check for modified events
+        // Track rows that still exist but changed time or title.
         const modifiedEvents = [];
         for (const existingEvent of existingEvents) {
           const googleEvent = formattedEvents.find(event => event.event_id === existingEvent.gcal_event_id);
@@ -558,21 +547,21 @@ app.get("/api/events", async (req, res) => {
           }
         }
 
-        // Clean old events
+        // Drop old rows before saving the latest Google snapshot.
         await db.cleanEvents(userCal.calendar_id, calendarStart.toISOString());
 
-        // Add new events
+        // Insert events that are new to this calendar.
         if (newEvents.length > 0) {
           await db.addEvents(userCal.calendar_id, newEvents);
         }
 
-        // Delete removed events
+        // Remove rows that no longer exist in Google.
         if (deletedEvents.length > 0) {
           const deletedEventIds = deletedEvents.map(event => event.gcal_event_id);
           await db.deleteEventsByIds(userCal.calendar_id, deletedEventIds);
         }
 
-        // Update modified events
+        // Update rows that still exist but changed contents.
         if (modifiedEvents.length > 0) {
           for (const mod of modifiedEvents) {
             await db.updateEvent(userCal.calendar_id, mod.id, mod.newEvent);
@@ -593,7 +582,7 @@ app.get("/api/events", async (req, res) => {
   } catch (error) {
     console.error('Error updating calendar', error);
     
-    // If authentication failed, clear session
+    // Clear the session when Google rejects the stored credentials.
     if (error.code === 401 || error.code === 403) {
       req.session.destroy();
       return res.status(401).json({ error: "Authentication expired. Please log in again." });
@@ -612,7 +601,7 @@ app.get('/api/get-events', async (req, res) => {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    // get all calendars for this user
+    // Read all saved calendars for this user from the local database.
     const userCalendars = await db.getCalendarsByUserID(req.session.userId);
     
     if (!userCalendars || userCalendars.length === 0) {
@@ -621,11 +610,11 @@ app.get('/api/get-events', async (req, res) => {
 
     let allFormattedEvents = [];
 
-    // Fetch events from each calendar
+    // Collect and normalize the stored events for each calendar.
     for (const userCal of userCalendars) {
       const events = await db.getEventsByCalendarID(userCal.calendar_id);
       
-      // transform db format to frontend format
+      // Shape the database rows into the format the frontend expects.
       const formattedEvents = events.map(event => normalizeCalendarEvent({
         title: event.event_name,
         start: event.event_start,
@@ -694,10 +683,10 @@ app.post("/api/add-events", async (req, res) => {
  */
 app.post('/api/change-blocking-lvl', async (req, res) => {
   try {
-    // Extract the new variables we added in the frontend
+    // Support both single-event and same-title bulk updates.
     const { event_id, priority, apply_to_all, title } = req.body;
     
-    // Grab the user ID from the session to protect the database
+    // Use the session user when the update targets every matching title.
     const userId = req.session?.userId;
 
     if (priority === undefined) {
@@ -705,14 +694,12 @@ app.post('/api/change-blocking-lvl', async (req, res) => {
     }
 
     if (apply_to_all) {
-      // MULTI-UPDATE MODE
       if (!userId || !title) {
         return res.status(400).json({ error: "Missing user session or title for bulk update" });
       }
       await db.updateEventPriorityByTitle(userId, title, parseInt(priority, 10));
       
     } else {
-      // SINGLE-UPDATE MODE
       if (!event_id) {
         return res.status(400).json({ error: "Missing event_id" });
       }
@@ -750,7 +737,7 @@ app.post('/api/delete-event', async (req, res) => {
  */
 app.post('/api/delete-events-by-title', async (req, res) => {
     try {
-        // Assuming your auth middleware puts the user ID in req.user or req.session
+        // Use the session user so one account only deletes its own events.
         const userId = req.session?.userId;
         const { title } = req.body;
 
@@ -775,12 +762,9 @@ app.post('/api/delete-events-by-title', async (req, res) => {
  * validates access, and creates a petition for a group.
  */
 app.post("/api/add-petition", async (req, res) => {
-  /**
-   * Normalizes legacy blocking-level payload values into the petition system's expected format.
-   *
-   * @param {string|number|null|undefined} rawValue - Blocking level value from a legacy request payload
-   * @returns {string|number|undefined} Normalized blocking value, original raw value, or undefined when missing
-   */
+  /*
+  Normalize older blocking-level values before they hit the petition parser.
+  */
   function normalizeLegacyBlockingLevel(rawValue) {
     if (rawValue == null) return undefined;
 
@@ -791,13 +775,9 @@ app.post("/api/add-petition", async (req, res) => {
     return rawValue;
   }
 
-  /**
-   * Converts older petition payload shapes into the normalized structure used by petition parsing.
-   * Supports legacy field names and legacy `events[0]` payloads.
-   *
-   * @param {Object} body - Raw request body from the legacy petition endpoint
-   * @returns {{groupId: *, title: *, start: *, end: *, blocking_level: *}} Normalized legacy petition payload
-   */
+  /*
+  Accept the older petition payload shapes that still exist in some callers.
+  */
   function normalizeLegacyPetitionPayload(body) {
     const firstEvent = Array.isArray(body?.events) ? body.events[0] : null;
 
@@ -938,12 +918,8 @@ app.get('/api/calendars', async (req, res) => {
   }
 });
 
-// ALGORITHM ROUTE: SEE docs/AVAILABILITY_ARCHITECTURE.md for documentation of how this works and what files have been changed.
-  // availability_service.js
-  // availability_adapter.js
-  // availability_controller.js
-  // algorithm.js
-  // algolrithm_types.js
+// --- availability route ---
+// See docs/AVAILABILITY_ARCHITECTURE.md for the supporting availability modules.
 const availabilityController = require('./availability_controller');
 
 /**

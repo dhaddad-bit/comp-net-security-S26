@@ -1,3 +1,9 @@
+/*
+model.js
+Implements the in-memory event store used by the event-management module.
+This file keeps the validation and mutation rules in one place.
+*/
+
 import { BlockingLevel } from "../types/algorithm_types.js";
 
 const VALID_BLOCKING_LEVELS = new Set(Object.values(BlockingLevel));
@@ -19,6 +25,7 @@ export class EventStoreError extends Error {
 }
 
 function assertNonEmptyString(value, label) {
+  // Reuse one validation error shape for every string field.
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new EventStoreError("VALIDATION_ERROR", `${label} must be a non-empty string.`, {
       label,
@@ -28,6 +35,7 @@ function assertNonEmptyString(value, label) {
 }
 
 function assertFiniteNumber(value, label) {
+  // Keep numeric validation consistent across event boundaries and timestamps.
   if (!Number.isFinite(value)) {
     throw new EventStoreError("VALIDATION_ERROR", `${label} must be a finite number.`, {
       label,
@@ -37,6 +45,7 @@ function assertFiniteNumber(value, label) {
 }
 
 function normalizeBlockingLevel(level) {
+  // Default missing blocking levels to B3 so the store stays conservative.
   const normalized = level ?? BlockingLevel.B3;
   if (!VALID_BLOCKING_LEVELS.has(normalized)) {
     throw new EventStoreError("VALIDATION_ERROR", `blockingLevel must be one of ${[...VALID_BLOCKING_LEVELS].join(", ")}.`, {
@@ -47,6 +56,7 @@ function normalizeBlockingLevel(level) {
 }
 
 function validateInterval({ userId, startMs, endMs }) {
+  // Validate the common interval fields before a store mutation happens.
   assertNonEmptyString(userId, "userId");
   assertFiniteNumber(startMs, "startMs");
   assertFiniteNumber(endMs, "endMs");
@@ -59,6 +69,7 @@ function validateInterval({ userId, startMs, endMs }) {
 }
 
 function cloneEvent(event) {
+  // Return copies so callers do not mutate the store's internal state.
   return { ...event };
 }
 

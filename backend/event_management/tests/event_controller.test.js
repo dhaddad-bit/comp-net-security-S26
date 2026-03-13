@@ -1,3 +1,9 @@
+/*
+event_controller.test.js
+Tests the event controller against the shared view contract.
+These cases cover success paths, EventStoreError handling, and unknown errors.
+*/
+
 import { EventStore, EventStoreError } from "../model.js";
 import { EventController } from "../controller.js";
 import { createEventView } from "../view.js";

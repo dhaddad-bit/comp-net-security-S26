@@ -153,11 +153,11 @@ describe("Algorithm: priority threshold availability", () => {
         granularityMinutes: 15,
       });
 
-      // 0-15 overlaps 10-15 => busy
+      // The first block overlaps the event tail.
       expect(r[0].busyUserIds).toContain("u1");
-      // 15-30 overlaps 15-25 => busy
+      // The second block overlaps the carried-forward event.
       expect(r[1].busyUserIds).toContain("u1");
-      // 30-45 => free
+      // The final block starts after the merged event ends.
       expect(r[2].freeUserIds).toContain("u1");
     });
 

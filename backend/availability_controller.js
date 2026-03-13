@@ -1,9 +1,15 @@
+/*
+availability_controller.js
+Handles the group availability endpoint.
+This file validates the request, checks group access, and returns service data.
+*/
+
 const availabilityService = require('./services/availability_service');
 const db = require('./db/dbInterface');
 
 const availabilityController = {
   async getAvailability(req, res) {
-    // 1. Auth Check
+    // Check that the user has an authenticated session before hitting the service.
     if (!req.session.userId) {
       return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
@@ -11,12 +17,10 @@ const availabilityController = {
     try {
       const { groupId } = req.params;
 
-      // 2. Extract the correct keys from the URL (req.query)
-      // These must match the frontend: windowStartMs and windowEndMs
+      // Read the query keys the frontend sends for the availability window.
       const { windowStartMs, windowEndMs } = req.query;
 
-      // 3. Convert to Numbers and pass to Service
-      // If windowStartMs is missing, Number(undefined) is NaN, which triggers your 400
+      // Convert route and query values up front so the validation stays in one place.
       const parsedGroupId = Number(groupId);
       const start = Number(windowStartMs);
       const end = Number(windowEndMs);
@@ -50,9 +54,11 @@ const availabilityController = {
         end
       );
 
+      // Return the service payload in the same envelope the frontend already expects.
       res.json({ ok: true, ...data });
 
     } catch (err) {
+      // Let the service drive the status code when it throws a classified error.
       console.error(`[AvailabilityController] Error: ${err.message}`);
       const statusCode = err.status || 500;
       res.status(statusCode).json({ ok: false, error: err.message });

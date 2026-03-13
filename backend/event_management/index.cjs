@@ -1,6 +1,13 @@
+/*
+index.cjs
+Loads the ESM event-management module for CommonJS callers.
+This keeps the package export shape consistent with the algorithm module.
+*/
+
 let modulePromise = null;
 
 async function loadModule() {
+  // Cache the dynamic import so CommonJS callers reuse one module instance.
   if (!modulePromise) {
     modulePromise = import("./index.js");
   }

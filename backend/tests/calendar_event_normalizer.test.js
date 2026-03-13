@@ -1,3 +1,9 @@
+/*
+calendar_event_normalizer.test.js
+Locks down the all-day normalization rules used by the backend event formatter.
+These tests focus on the boundary cases the frontend calendar depends on.
+*/
+
 const { deriveAllDayMetadata, normalizeCalendarEvent } = require('../calendar_event_normalizer');
 
 describe('calendar_event_normalizer', () => {

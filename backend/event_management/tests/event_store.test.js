@@ -1,3 +1,9 @@
+/*
+event_store.test.js
+Locks down the in-memory event store behavior.
+These tests cover manual events, Google snapshots, and priority overrides.
+*/
+
 import { EventStore, EventStoreError, EventSources } from "../model.js";
 import { BlockingLevel } from "../types/algorithm_types.js";
 

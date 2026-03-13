@@ -14,20 +14,17 @@ System Context:
 
 */
 
-// Map DB priority integers to the algorithm's BlockingLevel strings
+// Map the older integer priority values onto the algorithm's blocking labels.
 const priorityMapping = {
     1: "B1",
     2: "B2",
     3: "B3"
 };
 
-/**
- * This translates the blocking level string to only be uppercase, in case
- * of any mismatch between uppercase and lowercase
- * 
- * @param {string} level 
- * @returns {string} -- normalized string or "B3"
- */
+/*
+Normalize blocking-level text coming back from the database.
+This keeps the algorithm input using the B1/B2/B3 format.
+*/
 function normalizeBlockingLevel(level) {
     const normalized = typeof level === "string" ? level.trim().toUpperCase() : "";
     if (normalized === "B1" || normalized === "B2" || normalized === "B3") {
@@ -36,29 +33,23 @@ function normalizeBlockingLevel(level) {
     return "B3";
 }
 
-/**
- * Detects all-day events and snaps them to the user's LOCAL midnight 
- * by mathematically extracting their timezone offset from the windowStartMs.
- * 
- * @param {Number} startMs - start time in milliseconds
- * @param {Number} endMs - end time in milliseconds
- * @param {Number} windowStartMs
- * @returns {Object} - object with the adjusted start and end times based on
- *      timezone offset
- */
+/*
+Adjust all-day events to the user's local midnight boundaries.
+This keeps midnight-to-midnight rows lining up with the frontend calendar.
+*/
 function adjustIfAllDay(startMs, endMs, windowStartMs) {
     const start = new Date(startMs);
     const end = new Date(endMs);
 
-    // Check if both timestamps land perfectly on Midnight UTC
+    // Only shift rows that were stored as midnight-to-midnight UTC spans.
     const isStartMidnightUTC = start.getUTCHours() === 0 && start.getUTCMinutes() === 0;
     const isEndMidnightUTC = end.getUTCHours() === 0 && end.getUTCMinutes() === 0;
 
     if (isStartMidnightUTC && isEndMidnightUTC) {
-        // Extract the user's exact offset from their local midnight timestamp
+        // Derive the local offset from the request window so the event lands on local midnight.
         let offsetMs = windowStartMs % (24 * 60 * 60 * 1000);
         
-        // If the remainder is > 12 hours, the user is in the Eastern Hemisphere (ahead of UTC)
+        // Convert offsets above 12 hours into the negative local offset form.
         if (offsetMs > 12 * 60 * 60 * 1000) {
             offsetMs -= (24 * 60 * 60 * 1000);
         }
@@ -83,7 +74,7 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
     for (const row of dbRows) {
         const { user_id, event_start, event_end } = row;
 
-        // Ensure the user exists in the map (even if they have no events)
+        // Keep users with no event rows so empty calendars still stay in the group snapshot.
         if (!participantMap.has(user_id)) {
             participantMap.set(user_id, {
                 userId: user_id,
@@ -91,28 +82,27 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
             });
         }
 
-        // If the LEFT JOIN returned an actual event, format and push it
+        // Only push an event when the LEFT JOIN actually returned one.
         if (event_start && event_end) {
             const levelFromSql = normalizeBlockingLevel(row.blocking_level);
             const levelFromPriority = priorityMapping[row.priority] || "B3";
 
-                // Extract raw epoch milliseconds
-                const rawStartMs = new Date(event_start).getTime();
-                const rawEndMs = new Date(event_end).getTime();
+            // Normalize all-day rows before storing them in the participant snapshot.
+            const rawStartMs = new Date(event_start).getTime();
+            const rawEndMs = new Date(event_end).getTime();
             
-                // Run them through the timezone corrector
-                const { adjustedStartMs, adjustedEndMs } = adjustIfAllDay(rawStartMs, rawEndMs, windowStartMs);
+            const { adjustedStartMs, adjustedEndMs } = adjustIfAllDay(rawStartMs, rawEndMs, windowStartMs);
 
-                participantMap.get(user_id).events.push({
-                    startMs: adjustedStartMs,
-                    endMs: adjustedEndMs,
-                    // Prefer blocking_level from SQL; fallback to priority for compatibility.
-                    blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
-                });
+            participantMap.get(user_id).events.push({
+                startMs: adjustedStartMs,
+                endMs: adjustedEndMs,
+                // Prefer blocking_level from SQL and fall back to the older priority column.
+                blockingLevel: row.blocking_level == null ? levelFromPriority : levelFromSql
+            });
         }
     }
 
-    // Convert the Map values back into a standard array
+    // Return the snapshots in a plain array for the algorithm module.
     return Array.from(participantMap.values());
 }
 
@@ -126,7 +116,7 @@ function mapDatabaseRowsToParticipants(dbRows, windowStartMs) {
  * @returns {Promise<Array>} The formatted participants array
  */
 async function fetchAndMapGroupEvents(db, groupId, windowStartMs, windowEndMs) {
-    // Convert epoch milliseconds back to Postgres timestamps
+    // Turn the requested epoch window back into timestamp strings for SQL.
     const startTimestamp = new Date(windowStartMs).toISOString();
     const endTimestamp = new Date(windowEndMs).toISOString();
 
@@ -199,7 +189,7 @@ async function fetchAndMapGroupEvents(db, groupId, windowStartMs, windowEndMs) {
     try {
         const result = await db.query(query, values);
         
-        // Pass the raw Postgres rows into our reducer
+        // Reduce the SQL rows into the participant shape the algorithm expects.
         const formattedParticipants = mapDatabaseRowsToParticipants(result.rows, windowStartMs);
         return formattedParticipants;
         
@@ -211,5 +201,5 @@ async function fetchAndMapGroupEvents(db, groupId, windowStartMs, windowEndMs) {
 
 module.exports = {
     fetchAndMapGroupEvents,
-    mapDatabaseRowsToParticipants // Exported for easy unit testing
+    mapDatabaseRowsToParticipants // Export this separately so the adapter tests can target the reducer.
 };

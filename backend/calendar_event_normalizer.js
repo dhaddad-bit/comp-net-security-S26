@@ -1,7 +1,14 @@
+/*
+calendar_event_normalizer.js
+Normalizes calendar events before they go back to the frontend.
+This keeps all-day metadata consistent for Google events and manual events.
+*/
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function toDate(value) {
+  // Copy Date inputs so later normalization never mutates the caller's value.
   if (value instanceof Date) {
     return Number.isFinite(value.getTime()) ? new Date(value.getTime()) : null;
   }
@@ -37,6 +44,7 @@ function formatUtcDateOnly(date) {
 }
 
 function serializeBoundary(value, parsedDate) {
+  // Preserve the original shape when parsing fails so callers keep the raw value.
   if (parsedDate) {
     return parsedDate.toISOString();
   }
@@ -57,6 +65,7 @@ function serializeBoundary(value, parsedDate) {
 }
 
 function deriveAllDayMetadata(startValue, endValue) {
+  // Treat both explicit date-only ranges and midnight-to-midnight UTC spans as all-day.
   const start = toDate(startValue);
   const end = toDate(endValue);
 
@@ -92,6 +101,7 @@ function deriveAllDayMetadata(startValue, endValue) {
 }
 
 function normalizeCalendarEvent(event) {
+  // Copy the event and add the normalized all-day fields the calendar UI expects.
   const metadata = deriveAllDayMetadata(event?.start, event?.end);
   const normalized = {
     ...event,

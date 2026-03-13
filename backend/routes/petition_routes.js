@@ -1,6 +1,13 @@
+/*
+petition_routes.js
+Registers the petition API routes.
+This file centralizes auth checks, petition validation, and error formatting.
+*/
+
 const crypto = require("crypto");
 
 function ensureTraceId(res) {
+  // Reuse one trace id for the whole request so logs and responses line up.
   if (!res.locals.traceId) {
     res.locals.traceId = crypto.randomUUID();
     res.setHeader("X-Trace-Id", res.locals.traceId);
@@ -14,11 +21,13 @@ function withTraceId(req, res, next) {
 }
 
 function sendApiError(req, res, status, message, extra = {}) {
+  // Attach the trace id to every error response the frontend sees.
   const traceId = ensureTraceId(res);
   return res.status(status).json({ error: message, traceId, ...extra });
 }
 
 function logRouteError(req, res, stage, error, extra = {}) {
+  // Keep the route logs structured so petition failures can be traced back quickly.
   const traceId = ensureTraceId(res);
   console.error("[PetitionRoutes]", {
     traceId,
@@ -34,6 +43,7 @@ function logRouteError(req, res, stage, error, extra = {}) {
 }
 
 function requireAuth(req, res, next) {
+  // Copy the session user id onto the request once auth passes.
   if (!req.session || !req.session.userId || !req.session.isAuthenticated) {
     return sendApiError(req, res, 401, "Unauthorized");
   }
@@ -44,6 +54,7 @@ function requireAuth(req, res, next) {
 
 function requireGroupMember(db) {
   return async function requireGroupMemberMiddleware(req, res, next) {
+    // Validate the route parameter before hitting the database.
     const groupId = Number(req.params.groupId);
     if (!Number.isInteger(groupId) || groupId <= 0) {
       return sendApiError(req, res, 400, "Invalid groupId");
@@ -70,6 +81,7 @@ function requireGroupMember(db) {
 }
 
 function parseEpochMs(value) {
+  // Accept either epoch-like numbers or date strings from older callers.
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
     const asNumber = Number(value);
@@ -81,6 +93,7 @@ function parseEpochMs(value) {
 }
 
 function normalizeBlockingLevel(input) {
+  // Default to the middle blocking level when callers omit the field.
   const level = String(input || "B2").toUpperCase();
   if (level === "B1" || level === "B2" || level === "B3") return level;
   return null;
@@ -101,6 +114,7 @@ function createHttpError(status, message, extra = {}) {
 }
 
 function parseCreatePetitionInput(body) {
+  // Normalize the legacy and modern petition payload shapes into one validated object.
   const startMs = parseEpochMs(body?.start);
   const endMs = parseEpochMs(body?.end);
   const title = typeof body?.title === "string" ? body.title.trim() : "";
@@ -128,6 +142,7 @@ function parseCreatePetitionInput(body) {
 }
 
 function isPetitionSchemaMissingError(error) {
+  // Recognize both wrapped app errors and raw Postgres missing-table errors.
   if (!error) return false;
   if (error.appCode === "PETITION_SCHEMA_MISSING") return true;
   if (error.code !== "42P01") return false;
@@ -166,6 +181,7 @@ function sendClassifiedError(req, res, error, fallbackMessage) {
 }
 
 function decoratePetitionForUser(petition, userId) {
+  // Add the creator flag the frontend uses for button visibility.
   if (!petition || typeof petition !== "object") {
     return petition;
   }
@@ -183,6 +199,7 @@ function decoratePetitionForUser(petition, userId) {
 }
 
 function registerPetitionRoutes(app, { db }) {
+  // Verify that the petition tables exist before the frontend opens petition UI.
   app.get("/api/groups/:groupId/petitions/preflight", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       await db.assertPetitionSchemaReady();
@@ -197,6 +214,7 @@ function registerPetitionRoutes(app, { db }) {
     }
   });
 
+  // Create a petition for one group after auth and membership checks pass.
   app.post("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const parsed = parseCreatePetitionInput(req.body);
@@ -217,6 +235,7 @@ function registerPetitionRoutes(app, { db }) {
     }
   });
 
+  // List the petitions for the currently selected group.
   app.get("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const petitions = await db.listGroupPetitions({
@@ -234,6 +253,7 @@ function registerPetitionRoutes(app, { db }) {
     }
   });
 
+  // List every petition visible to the current user.
   app.get("/api/petitions", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitions = await db.listUserPetitions({ userId: req.userId });
@@ -248,6 +268,7 @@ function registerPetitionRoutes(app, { db }) {
     }
   });
 
+  // Record one user's ACCEPT or DECLINE response.
   app.post("/api/petitions/:petitionId/respond", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);
@@ -273,6 +294,7 @@ function registerPetitionRoutes(app, { db }) {
     }
   });
 
+  // Let a creator delete their own petition.
   app.delete("/api/petitions/:petitionId", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);

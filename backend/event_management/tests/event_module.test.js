@@ -1,3 +1,9 @@
+/*
+event_module.test.js
+Checks the event-management module factory.
+These tests make sure the factory wires the model, view, and controller together.
+*/
+
 import { createEventManagementModule, EventStore } from "../index.js";
 
 describe("event_management module factory", () => {

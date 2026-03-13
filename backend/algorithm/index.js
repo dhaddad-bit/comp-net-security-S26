@@ -11,4 +11,3 @@ algorithm implementation details isolated in the core module.
 */
 
 export * from "./algorithm.js";
-

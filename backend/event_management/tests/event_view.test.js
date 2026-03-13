@@ -1,3 +1,9 @@
+/*
+event_view.test.js
+Checks the small response helpers returned by createEventView().
+These cases keep the success and error payload shapes stable.
+*/
+
 import { createEventView } from "../view.js";
 
 describe("Event view helpers", () => {

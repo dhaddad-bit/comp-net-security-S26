@@ -1,3 +1,9 @@
+/*
+dbInterface.js
+Holds the shared PostgreSQL queries used across the backend.
+This file keeps connection setup, user/group helpers, and petition helpers in one place.
+*/
+
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
@@ -11,7 +17,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const pool = new Pool(
     isProduction 
     ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
-    : { // else for local dev
+    : { // Local development connection settings.
         user: process.env.DB_USER,
         host: process.env.DB_HOST,
         database: process.env.DB_NAME,
@@ -106,7 +112,7 @@ const insertUpdateUser = async(google_id, email, first_name, last_name, username
     if (!username) {
         _username = "New user!";
     }
-    // need to check if username matches (maybe)
+    // Route-level validation handles username rules before this upsert runs.
     const result = await pool.query( `
         INSERT INTO person (google_id, email, first_name, last_name, username, refresh_token, access_token, token_expiry)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -172,7 +178,7 @@ const addEvents = async(cal_id, events, priority=3) => {
             ON CONFLICT DO NOTHING`,
             [
                 cal_id,
-                events[i].priority, // TODO: make this events[i].priority
+                events[i].priority,
                 events[i].start,
                 events[i].end,
                 events[i].title,
@@ -182,7 +188,7 @@ const addEvents = async(cal_id, events, priority=3) => {
     };
 }
 
-// Updates the priority (blocking level) of an event
+// Update the blocking level for one stored event.
 const updateEventPriority = async(event_id, priority) => {
     const query = `
         UPDATE cal_event
@@ -194,7 +200,7 @@ const updateEventPriority = async(event_id, priority) => {
     return res.rows[0];
 }
 
-// Updates priority for ALL events with a matching title for a specific user
+// Update every matching title for one user's calendars.
 const updateEventPriorityByTitle = async (userId, title, priority) => {
     const query = `
         UPDATE cal_event
@@ -207,7 +213,7 @@ const updateEventPriorityByTitle = async (userId, title, priority) => {
     return res.rows; // Returns array of all updated rows
 }
 
-// Deletes an event completely
+// Delete one event by its Google Calendar event id.
 const deleteEventByGcalEventId = async(event_id) => {
     const query = `
         DELETE FROM cal_event
@@ -220,7 +226,7 @@ const deleteEventByGcalEventId = async(event_id) => {
 
 const deleteEventsByTitle = async(userId, title) => {
     try {
-        // Deletes all events for this specific user that perfectly match the title
+        // Delete all exact title matches for this user's calendars.
         const query = `
             DELETE FROM cal_event 
             WHERE event_name = $2
@@ -232,7 +238,7 @@ const deleteEventsByTitle = async(userId, title) => {
         `;
         const result = await pool.query(query, [userId, title]);
         
-        // Return how many events were successfully deleted
+        // Return the number of rows removed for the caller.
         return { success: true, deletedCount: result.rowCount };
     } catch (error) {
         console.error("Error deleting events by title:", error);
@@ -241,9 +247,9 @@ const deleteEventsByTitle = async(userId, title) => {
 }
 
 /**
- * This takes the calendar id and deletes the events
- * under that calendar id that ended a week ago or more
- * @param {*} cal_id 
+ * Deletes events for one calendar that ended before the provided cutoff date.
+ * @param {*} cal_id
+ * @param {*} date
  */
 const cleanEvents = async(cal_id, date) => {
     await pool.query(
@@ -322,8 +328,7 @@ const getNameByID = async(id) => {
 }
 
 const searchFor = async(search) => {
-    // regex to search for usernames that start
-    // with the user's search
+    // Match usernames by prefix so the search dropdown can autocomplete.
     const result = await pool.query(
         `SELECT user_id, username FROM person 
         WHERE username ILIKE $1 LIMIT 10`,
@@ -367,7 +372,7 @@ const createGroup = async(g_name) => {
     const result = await pool.query(query, [
         g_name
     ]);
-    return result.rows[0].group_id; // Garertt changed this line
+    return result.rows[0].group_id;
 }
 
 /**
@@ -468,7 +473,7 @@ const getGroupMembersByID = async(group_id) => {
         WHERE gm.group_id = ($1)
     `;
     const res = await pool.query(query, [group_id]);
-    return res.rows; // Returns an array of user objects: [{ username: "bob", user_id: 1 }, ...]
+    return res.rows;
 }
 
 const deleteGroup = async(group_id) => {
@@ -496,9 +501,8 @@ const leaveGroup = async(user_id, group_id) => {
 }
 
 /**
- * 
  * @param {bigint} user_id unique user id. NOT their google id.
- * @param {string} new_username new username the user wants. Note that this is not checking for proper length or encoding. 
+ * @param {string} new_username new username the user wants. Note that this is not checking for proper length or encoding.
  */
 const updateUsername = async(user_id, new_username) => {
     try {
@@ -517,8 +521,10 @@ const checkUsernameExists = async(username) => {
         `SELECT user_id FROM person WHERE username = $1`,
         [username]
     );
-    return result.rows.length > 0; // returns true if exists
+    return result.rows.length > 0;
 }
+
+// --- petition helpers ---
 
 const PETITION_CTES = `
 WITH response_counts AS (

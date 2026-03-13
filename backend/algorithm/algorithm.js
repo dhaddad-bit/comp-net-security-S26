@@ -26,7 +26,7 @@ System Context:
  * It is consumed by backend availability routes/services and indirectly powers frontend heatmap views.
 */
 
-// Trying to work with whatever module system backend is using (CommonJS or ESM). If this causes issues, we can adjust.
+// Keep the import CommonJS-friendly so the backend wrappers can load the same file.
 const { DEFAULT_G_MINUTES, BlockingLevel } = require('./algorithm_types.js');
 
 /** @typedef {import("./algorithm_types.js").UserId} UserId */
@@ -35,8 +35,7 @@ const { DEFAULT_G_MINUTES, BlockingLevel } = require('./algorithm_types.js');
 /** @typedef {import("./algorithm_types.js").AvailabilityBlockMulti} AvailabilityBlockMulti */
 /** @typedef {import("./algorithm_types.js").AvailabilityView} AvailabilityView */
 
-// Internal ordering so we can do threshold comparisons.
-// Lower number = "counts earlier" when we go more restrictive.
+// Lower numbers represent more restrictive blocking levels during threshold checks.
 const blockingOrder = Object.freeze({
   [BlockingLevel.B1]: 1,
   [BlockingLevel.B2]: 2,
@@ -133,10 +132,10 @@ function computeAvailabilityBlocks({
   granularityMinutes = DEFAULT_G_MINUTES,
   priority = BlockingLevel.B3,
 }) {
-  // Define the missing threshold value based on the chosen priority
+  // Normalize the selected threshold before the block scan starts.
   const minPriorityValue = blockingOrder[priority] || blockingOrder[BlockingLevel.B3];
 
-  // Basic validation: fail loud so bugs don't silently ship.
+  // Validate the window and participants before doing any interval work.
   if (!Number.isFinite(windowStartMs) || !Number.isFinite(windowEndMs)) {
     throw new Error("windowStartMs/windowEndMs must be numbers (epoch ms).");
   }
@@ -152,7 +151,7 @@ function computeAvailabilityBlocks({
     throw new Error("granularityMinutes must be a positive number.");
   }
 
-  // Preprocess: for each user, clamp events to window and merge overlaps.
+  // Clamp every event to the request window before the main block scan runs.
   /** @type {Map<UserId, {startMs:number,endMs:number}[]>} */
   const mergedBusyByUser = new Map();
 
@@ -171,12 +170,12 @@ function computeAvailabilityBlocks({
       if (!Number.isFinite(s) || !Number.isFinite(e)) continue;
       if (e <= s) continue;
 
-      // clamp to the query window
+      // Trim each interval to the requested availability window.
       const startMs = Math.max(s, windowStartMs);
       const endMs = Math.min(e, windowEndMs);
       if (endMs <= startMs) continue;
 
-      // threshold logic
+      // Skip events that are below the chosen blocking threshold.
       const levelKey = normalizeBlockingLevel(ev.blockingLevel);
       const levelValue = blockingOrder[levelKey];
       if (levelValue < minPriorityValue) continue;
@@ -215,7 +214,7 @@ function computeAvailabilityBlocks({
       const merged = mergedBusyByUser.get(userId) || [];
       let idx = idxByUser.get(userId) || 0;
 
-      // advance pointer while the interval ends before this block starts
+      // Advance the pointer past intervals that ended before this block begins.
       while (idx < merged.length && merged[idx].endMs <= blockStart) idx++;
       idxByUser.set(userId, idx);
 
@@ -307,7 +306,8 @@ function computeAvailabilityBlocksAllViews({
     const userId = p.userId;
     const rawEvents = Array.isArray(p.events) ? p.events : [];
 
-    const lists = { StrictView: [], FlexibleView: [], LenientView: [] }; // Fixing Priority. Naming conventions for clarity. 02-22 1.1
+    // Track one interval list per view so all three heatmaps can be built in one pass.
+    const lists = { StrictView: [], FlexibleView: [], LenientView: [] };
 
     for (const ev of rawEvents) {
       if (!ev) continue;
@@ -324,21 +324,20 @@ function computeAvailabilityBlocksAllViews({
       const level = normalizeBlockingLevel(ev.blockingLevel);
 
       if (level === BlockingLevel.B3) {
-        // A B3 event is always busy for all views.
+        // Hard blocks count as busy in every view.
         lists.StrictView.push({ startMs, endMs });
         lists.FlexibleView.push({ startMs, endMs });
         lists.LenientView.push({ startMs, endMs });
       }
       else if (level === BlockingLevel.B2) {
-        // (Mediium Priority / Flexible) A B2 event counts as busy for StrictView and FlexibleView.
+        // Medium blocks count in the strict and flexible views.
         lists.StrictView.push({ startMs, endMs });
         lists.FlexibleView.push({ startMs, endMs });
       }
       else {
-        // Only B1 events effect all views, so push to StrictView only
+        // Soft blocks only affect the strict view.
         lists.StrictView.push({ startMs, endMs });
       }
-      // Fixing Routing For Priority Level clarity. 02-22. 1.1
     }
     const merged = {
       StrictView: mergeIntervals(lists.StrictView),
@@ -460,7 +459,7 @@ function toSingleViewBlocks(blocksMulti, chosen) {
     throw new Error("blocksMulti must be an array.");
   }
 
-  // Defensive default: if chosen is wrong, go restrictive.
+  // Fall back to the strictest view when the caller sends an invalid choice.
   const key = blockingOrder[chosen] ? chosen : BlockingLevel.StrictView;
 
   return blocksMulti.map((b) => ({
@@ -470,7 +469,7 @@ function toSingleViewBlocks(blocksMulti, chosen) {
   }));
 }
 
-// Trying to comply with whatever module system the backend is using (CommonJS or ESM).
+// Export the helpers so both CommonJS and ESM wrappers can re-use them.
 module.exports = {
   computeAvailabilityBlocks,
   computeAvailabilityBlocksAllViews,

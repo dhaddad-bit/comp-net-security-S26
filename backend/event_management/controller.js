@@ -1,3 +1,9 @@
+/*
+controller.js
+Coordinates the in-memory event store and the event view helpers.
+This keeps controller methods focused on translating model results into responses.
+*/
+
 import { EventStore, EventStoreError } from "./model.js";
 import { createEventView } from "./view.js";
 
@@ -12,6 +18,7 @@ export class EventController {
   }
 
   addEventBlock(args) {
+    // Pass the model result straight through the matching view helper.
     try {
       const event = this.model.addManualEvent(args);
       return this.view.eventBlockAdded(event);
@@ -57,6 +64,7 @@ export class EventController {
   }
 
   _handleError(error) {
+    // Preserve EventStoreError details and wrap anything else in the shared UNKNOWN shape.
     if (error instanceof EventStoreError) {
       return this.view.error(error);
     }

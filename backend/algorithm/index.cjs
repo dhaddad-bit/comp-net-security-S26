@@ -13,6 +13,7 @@ module.exports so require() callers can use the same compute API as ESM import c
 let algorithmPromise = null;
 
 async function loadAlgorithm() {
+  // Cache the dynamic import so repeated calls reuse the same module instance.
   if (!algorithmPromise) {
     algorithmPromise = import("./algorithm.js");
   }
@@ -20,16 +21,19 @@ async function loadAlgorithm() {
 }
 
 async function computeAvailabilityBlocks(args) {
+  // Forward the single-view helper through the ESM module.
   const mod = await loadAlgorithm();
   return mod.computeAvailabilityBlocks(args);
 }
 
 async function computeAvailabilityBlocksAllViews(args) {
+  // Forward the multi-view helper through the ESM module.
   const mod = await loadAlgorithm();
   return mod.computeAvailabilityBlocksAllViews(args);
 }
 
 async function toSingleViewBlocks(blocksMulti, chosen) {
+  // Forward the projection helper through the ESM module.
   const mod = await loadAlgorithm();
   return mod.toSingleViewBlocks(blocksMulti, chosen);
 }

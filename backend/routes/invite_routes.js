@@ -1,8 +1,15 @@
+/*
+invite_routes.js
+Registers the backend invite routes.
+This file handles email sends, invite links, and pending-invite responses.
+*/
+
 const { groupRequest } = require("../emailer.js");
 const { setTimeout } = require('timers/promises');
 
 
 module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteState }) {
+  // Support both newer and legacy db helpers while looking up group names for invites.
   async function getGroupForInvite(groupId) {
     if (typeof db.getGroupById === "function") {
       const group = await db.getGroupById(groupId);
@@ -22,7 +29,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     return null;
   }
 
-  // body requires: usernames, sender's username, group_id, sharing_link
+  // Send invite links over email to the selected group members.
   app.post("/api/group/send_link_over_email", async (req, res) => {
     try {
       for (const user of req.body.users) {
@@ -32,7 +39,8 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
                             req.body.sender_user,
                             req.body.shareable_link);
         }
-        await setTimeout(750); // can only call email api twice per second.
+        // Slow the loop down so the email provider rate limit is respected.
+        await setTimeout(750);
       }
       return res.status(201).json({success: true});
     } catch (error) {
@@ -41,6 +49,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     }
   });
 
+  // Create the shareable invite URL for a group member.
   app.post("/group/invite", async (req, res) => {
     if (!inviteState.isAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -62,6 +71,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     }
   });
 
+  // Store the invite token before redirecting the user into the app flow.
   app.get("/group/respond-invitation", async (req, res) => {
     const { q } = req.query;
     const result = inviteToken.verifyInviteToken(q);
@@ -83,6 +93,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     return res.redirect("/");
   });
 
+  // Let the frontend ask whether the current user still has a saved invite.
   app.get("/api/group-invite/pending", async (req, res) => {
     try {
       if (!inviteState.isAuthenticated(req)) {
@@ -126,6 +137,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     }
   });
 
+  // Accept or decline the saved invite token.
   app.post("/api/group-invite/respond", async (req, res) => {
     try {
       if (!inviteState.isAuthenticated(req)) {
@@ -164,7 +176,7 @@ module.exports = function registerInviteRoutes(app, { db, inviteToken, inviteSta
     }
   });
 
-  // Legacy endpoint left in place to avoid breaking callers.
+  // Keep the older join endpoint working while newer invite routes are in use.
   app.get('/api/groups/join', async (req, res) => {
     try {
       const decoded = inviteToken.verifyInviteToken(req.query.token);

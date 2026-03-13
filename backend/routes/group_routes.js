@@ -1,4 +1,11 @@
+/*
+group_routes.js
+Registers the backend group routes.
+This file handles group creation, listing, details, and leaving a group.
+*/
+
 module.exports = function registerGroupRoutes(app, { db }) {
+  // Create a new group and add the current user as the first member.
   app.post("/group/creation", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
@@ -25,6 +32,7 @@ module.exports = function registerGroupRoutes(app, { db }) {
     }
   });
 
+  // Return the groups tied to the current authenticated user.
   app.get("/user/groups", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
@@ -42,26 +50,28 @@ module.exports = function registerGroupRoutes(app, { db }) {
     }
   });
 
-  app.get("/group/:groupId(\\d+)", async (req, res) => { // GCAVAILVIEW
-    try { // GCAVAILVIEW
-      if (!req.session.userId || !req.session.isAuthenticated) { // GCAVAILVIEW
-        return res.status(401).json({ error: "Unauthorized" }); // GCAVAILVIEW
-      } // GCAVAILVIEW
+  // Return one group's metadata plus the current member list.
+  app.get("/group/:groupId(\\d+)", async (req, res) => {
+    try {
+      if (!req.session.userId || !req.session.isAuthenticated) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-      const groupId = req.params.groupId; // GCAVAILVIEW
-      const groupInfo = await db.getGroupByID(groupId); // GCAVAILVIEW
-      const members = await db.getGroupMembersByID(groupId); // GCAVAILVIEW
-      return res.status(200).json({ // GCAVAILVIEW
-        success: true, // GCAVAILVIEW
-        group: groupInfo, // GCAVAILVIEW
-        members // GCAVAILVIEW
-      }); // GCAVAILVIEW
-    } catch (error) { // GCAVAILVIEW
-      console.error("error fetching group details:", error); // GCAVAILVIEW
-      return res.status(500).json({ error: "failed getting group details from db" }); // GCAVAILVIEW
-    } // GCAVAILVIEW
-  }); // GCAVAILVIEW
+      const groupId = req.params.groupId;
+      const groupInfo = await db.getGroupByID(groupId);
+      const members = await db.getGroupMembersByID(groupId);
+      return res.status(200).json({
+        success: true,
+        group: groupInfo,
+        members
+      });
+    } catch (error) {
+      console.error("error fetching group details:", error);
+      return res.status(500).json({ error: "failed getting group details from db" });
+    }
+  });
 
+  // Remove the current user from the selected group.
   app.post("/group/leave", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {

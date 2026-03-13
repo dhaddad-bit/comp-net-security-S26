@@ -1,3 +1,9 @@
+/*
+algorithm_adapter.test.js
+Checks the SQL-to-participant mapping used by the availability service.
+These tests focus on blocking levels, empty rows, and petition-aware SQL.
+*/
+
 const { fetchAndMapGroupEvents, mapDatabaseRowsToParticipants } = require('../algorithm_adapter');
 
 describe('algorithm_adapter', () => {
@@ -95,7 +101,7 @@ describe('algorithm_adapter', () => {
         expect(sql).toMatch(/pr_declined\.response\s*=\s*'DECLINED'/i);
         expect(sql).toMatch(/FROM\s+group_users\s+gu\s+LEFT\s+JOIN\s+event_rows\s+er/i);
 
-        // Must include cross-group accepted petitions: no selected-group filter on petitions.
+        // Accepted petitions should stay cross-group, so the SQL cannot filter petitions by selected group.
         expect(sql).not.toMatch(/p\.group_id\s*=\s*\$\d+/i);
     });
 

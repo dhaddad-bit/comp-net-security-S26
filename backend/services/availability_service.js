@@ -1,39 +1,34 @@
-/**
- * availability_service.js
- * * Goal: The "Model" in MVC. Orchestrates data fetching and calculation.
- * Principles: Implementation Hiding (Ch. 6), High Cohesion (Ch. 6).
- */
+/*
+availability_service.js
+Builds the availability payload for the group heatmap route.
+This file fetches participants, runs the algorithm, and formats the response.
+*/
 
 const { fetchAndMapGroupEvents } = require('../algorithm/algorithm_adapter.js');
 const { computeAvailabilityBlocksAllViews } = require('../algorithm/algorithm.js');
 const db = require('../db/dbInterface.js');
 
-/**
- * High-level service to get group availability heatmap data.
- * Handles the orchestration of DB fetching, mapping, and core calculation.
- */
 const availabilityService = {
   
   async getGroupAvailability(groupId, windowStartMs, windowEndMs) {
-    // 1. Ch. 1: Fail Fast - Validate inputs before touching the DB
+    // Validate the time window before touching the database or the algorithm.
     if (!windowStartMs || !windowEndMs || windowEndMs <= windowStartMs) {
       const err = new Error("Invalid time window: end must be after start.");
-      err.status = 400; // Ch. 5: Explicit error state for Alternative Flow
+      err.status = 400; // Return a client error when the request window is invalid.
       throw err;
     }
 
-    // 2. Ch. 6: Implementation Hiding - Controller doesn't know about the Adapter
-    // Fetch raw events from DB and map them to the ParticipantSnapshot format
+    // Fetch and map the raw group events into the algorithm snapshot format.
     const participants = await fetchAndMapGroupEvents(db, groupId, windowStartMs, windowEndMs);
 
-    // 3. Ch. 1: Failure Containment - Handle empty groups gracefully
+    // Treat empty groups as a clean 404 instead of feeding bad input into the algorithm.
     if (!participants || participants.length === 0) {
       const err = new Error("No members found for this group.");
       err.status = 404;
       throw err;
     }
 
-    // 4. Ch. 7: MVC Separation - Delegate pure math to the Algorithm "Model"
+    // Let the pure algorithm module compute every availability view in one pass.
     const blocks = computeAvailabilityBlocksAllViews({
       windowStartMs,
       windowEndMs,
@@ -41,6 +36,7 @@ const availabilityService = {
       granularityMinutes: 15
     });
 
+    // Normalize missing counts so the frontend always gets the same response shape.
     const normalizeView = (view = {}) => ({
       availableCount: Number.isFinite(view.availableCount) ? view.availableCount : 0,
       busyCount: Number.isFinite(view.busyCount) ? view.busyCount : 0,
@@ -48,7 +44,7 @@ const availabilityService = {
       availabilityFraction: Number.isFinite(view.availabilityFraction) ? view.availabilityFraction : 0
     });
 
-    // Keep strict-compatible fields while enriching with multi-view data.
+    // Keep the legacy strict-view fields while adding the richer multi-view payload.
     const formattedBlocks = blocks.map((block) => {
       const strictView = normalizeView(block.views && block.views.StrictView ? block.views.StrictView : {});
       const flexibleView = normalizeView(block.views && block.views.FlexibleView ? block.views.FlexibleView : {});
@@ -67,7 +63,7 @@ const availabilityService = {
         }
       };
     });
-    // Return the clean data to the controller
+    // Return the fully formatted payload to the controller.
     return {
       groupId,
       windowStartMs,
