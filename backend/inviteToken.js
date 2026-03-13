@@ -2,6 +2,10 @@
 File: inviteToken.js
 Purpose: Creates and verifies stateless invite tokens for group invitations.
     The token carries the group id and expiration time in a signed payload.
+Date Created:
+Author(s):
+
+System Context:
 */
 
 const crypto = require('crypto');

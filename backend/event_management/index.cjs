@@ -2,6 +2,10 @@
 File: index.cjs
 Purpose: Loads the ESM event-management module for CommonJS callers.
 This keeps the package export shape consistent with the algorithm module.
+Date Created:
+Author(s): David Haddad
+
+(Not used in final project)
 */
 
 let modulePromise = null;

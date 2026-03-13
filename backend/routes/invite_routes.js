@@ -2,6 +2,11 @@
 File: invite_routes.js
 Purpose: Registers the backend invite routes.
     This file handles email sends, invite links, and pending-invite responses.
+Date Created:
+Author(s):
+
+System Context:
+
 */
 
 const { groupRequest } = require("../emailer.js");

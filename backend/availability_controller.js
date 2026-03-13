@@ -2,6 +2,11 @@
 File: availability_controller.js
 Purpose: Handles the group availability endpoint.
     This file validates the request, checks group access, and returns service data.
+Date Created:
+Author(s):
+
+System Context:
+
 */
 
 const availabilityService = require('./services/availability_service');

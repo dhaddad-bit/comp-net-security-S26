@@ -2,6 +2,9 @@
 File: index.js
 Purpose: Builds the event-management MVC bundle for ESM callers.
     It exports the factory plus the model, controller, and view helpers.
+Date Created:
+Author(s): David Haddad
+Not in final project.
 */
 
 import { EventStore, EventStoreError, EventSources } from "./model.js";

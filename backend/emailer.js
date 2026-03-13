@@ -2,6 +2,11 @@
 File: emailer.js
 Purpose: Sends backend invitation emails through Resend.
     This module stays small because the invite routes handle the flow around it.
+Date Created:
+Author(s):
+
+System Context:
+
 */
 
 const {Resend} = require('resend');

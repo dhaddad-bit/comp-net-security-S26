@@ -3,8 +3,12 @@ File: dbInterface.js
 Purpose: Holds the shared PostgreSQL queries used across the backend.
     This file keeps connection setup, user/group helpers, and petition helpers in one place.
 
-    Creation Date: Feb 23, 2026
-    Initial Authors(s): Stella Greenvoss
+Creation Date: Feb 23, 2026
+Initial Authors(s): Stella Greenvoss
+
+System Context:
+dbInterface is used by the backend to make queries to the PostgreSQL database.
+It is an interface to facillitate changes or information requests from the backend.
 */
 
 const fs = require('fs');
