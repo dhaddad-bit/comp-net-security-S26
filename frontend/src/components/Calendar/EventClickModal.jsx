@@ -12,6 +12,7 @@ on an event on the custom calendar.
 
 import React, { useState } from 'react';
 import { apiPost } from '../../api';
+import { useModalAccessibility } from '../common/useModalAccessibility';
 
 /**
  * 
@@ -31,6 +32,11 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
   // State to disable buttons while waiting for the backend to respond
   const [isSaving, setIsSaving] = useState(false);
   const [inlineError, setInlineError] = useState('');
+  const { dialogRef, titleId, descriptionId } = useModalAccessibility({
+    isOpen: Boolean(event),
+    onClose,
+    disableClose: isSaving
+  });
 
   // should this apply to duplicate events
   const [applyToAll, setApplyToAll] = useState(false);
@@ -98,16 +104,25 @@ export default function EventClickModal({ event, onClose, onRefresh }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-shell" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={() => { if (!isSaving) onClose(); }}>
+      <div
+        className="modal-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2>{event.title}</h2>
+          <h2 id={titleId}>{event.title}</h2>
           <button onClick={onClose} disabled={isSaving} className="cancel-btn" aria-label="Close event modal">
             &times;
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" id={descriptionId}>
           <p><strong>Start:</strong> {event.start.toLocaleString()}</p>
           <p><strong>End:</strong> {event.end.toLocaleString()}</p>
           <p><strong>Current Priority:</strong> {

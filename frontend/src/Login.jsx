@@ -41,8 +41,8 @@ export default function Login() {
 
     // Redirects the user to the backend Google OAuth start endpoint.
     const handleLogin = () => {
-      // fix localhost redirect issues with different frontend/backend ports
-      const baseURL = process.env.BACKEND_URL || '';
+      // Default to same-origin OAuth endpoint behind NGINX/proxy.
+      const baseURL = window.__BACKEND_URL__ || '';
       window.location.href = `${baseURL}/auth/google`;
   };
 

@@ -4,17 +4,18 @@ import { act } from 'react';
 
 import Main from '../Main';
 import { apiGet, apiPost } from '../api';
+import { ErrorContext } from '../ErrorContext';
 
-jest.mock('./api', () => ({
+jest.mock('../api', () => ({
   apiGet: jest.fn(),
   apiPost: jest.fn()
 }));
 
-jest.mock('./components/Groups/PendingInviteModal', () => function PendingInviteModalMock() {
+jest.mock('../components/Groups/PendingInviteModal', () => function PendingInviteModalMock() {
   return null;
 });
 
-jest.mock('./components/Calendar/EventSidebar', () => function EventSidebarMock({ petitionGroupId }) {
+jest.mock('../components/Calendar/EventSidebar', () => function EventSidebarMock({ petitionGroupId }) {
   return (
     <div data-testid="event-sidebar">
       <div data-testid="event-sidebar-petition-group-id">{petitionGroupId == null || petitionGroupId === '' ? 'none' : String(petitionGroupId)}</div>
@@ -22,11 +23,11 @@ jest.mock('./components/Calendar/EventSidebar', () => function EventSidebarMock(
   );
 });
 
-jest.mock('./components/Calendar/CustomCalendar', () => function CalendarMock({ groupId }) {
+jest.mock('../components/Calendar/CustomCalendar', () => function CalendarMock({ groupId }) {
   return <div data-testid="calendar-group-id">{groupId == null ? 'none' : String(groupId)}</div>;
 });
 
-jest.mock('./components/Groups/Groups', () => function GroupsMock({ selectedGroupId, onSelectGroup, onOpenPetition }) {
+jest.mock('../components/Groups/Groups', () => function GroupsMock({ selectedGroupId, onSelectGroup, onOpenPetition }) {
   return (
     <div>
       <div data-testid="groups-selected-group-id">{selectedGroupId == null ? 'none' : String(selectedGroupId)}</div>
@@ -48,6 +49,22 @@ function findButton(container, label) {
   return buttons.find((button) => button.textContent && button.textContent.includes(label));
 }
 
+function renderMain(root) {
+  const mockErrorContext = {
+    error: null,
+    setError: jest.fn(),
+    clearError: jest.fn()
+  };
+
+  return act(async () => {
+    root.render(
+      <ErrorContext.Provider value={mockErrorContext}>
+        <Main />
+      </ErrorContext.Provider>
+    );
+  });
+}
+
 describe('Main availability selection state', () => {
   let container;
   let root;
@@ -67,6 +84,7 @@ describe('Main availability selection state', () => {
 
     apiGet.mockImplementation(async (path) => {
       if (path === '/api/events') return [];
+      if (path === '/api/me') return { user: { username: 'tester' } };
       if (path === '/user/groups') return { success: true, groups: [{ group_id: 7, group_name: 'Group 7' }] };
       if (path === '/api/group-invite/pending') return { ok: true, hasPendingInvite: false };
       return [];
@@ -83,9 +101,7 @@ describe('Main availability selection state', () => {
   });
 
   test('keeps selected group availability visible across sidebar and panel toggles', async () => {
-    await act(async () => {
-      root.render(<Main />);
-    });
+    await renderMain(root);
     await flushEffects();
 
     await act(async () => {
@@ -120,9 +136,7 @@ describe('Main availability selection state', () => {
   });
 
   test('clears selected group only on explicit hide action', async () => {
-    await act(async () => {
-      root.render(<Main />);
-    });
+    await renderMain(root);
     await flushEffects();
 
     await act(async () => {
@@ -141,9 +155,7 @@ describe('Main availability selection state', () => {
   });
 
   test('petitioning a group syncs petition target and active calendar group', async () => {
-    await act(async () => {
-      root.render(<Main />);
-    });
+    await renderMain(root);
     await flushEffects();
 
     await act(async () => {
@@ -156,5 +168,49 @@ describe('Main availability selection state', () => {
 
     expect(container.querySelector('[data-testid="calendar-group-id"]').textContent).toBe('9');
     expect(container.querySelector('[data-testid="event-sidebar-petition-group-id"]').textContent).toBe('9');
+  });
+
+  test('calls /api/events once on initial load', async () => {
+    await renderMain(root);
+    await flushEffects();
+
+    const syncCalls = apiGet.mock.calls.filter(([path]) => path === '/api/events');
+    expect(syncCalls).toHaveLength(1);
+  });
+
+  test('does not re-sync /api/events for navigation and panel toggles', async () => {
+    await renderMain(root);
+    await flushEffects();
+    expect(apiGet.mock.calls.filter(([path]) => path === '/api/events')).toHaveLength(1);
+
+    await act(async () => {
+      findButton(container, 'Show Groups').click();
+    });
+    await act(async () => {
+      findButton(container, 'Select Group 7').click();
+    });
+    await act(async () => {
+      findButton(container, 'Hide Groups').click();
+    });
+    await act(async () => {
+      findButton(container, 'Add Event').click();
+    });
+    await act(async () => {
+      findButton(container, 'Close Event').click();
+    });
+
+    expect(apiGet.mock.calls.filter(([path]) => path === '/api/events')).toHaveLength(1);
+  });
+
+  test('re-syncs /api/events only on explicit sync button click', async () => {
+    await renderMain(root);
+    await flushEffects();
+    expect(apiGet.mock.calls.filter(([path]) => path === '/api/events')).toHaveLength(1);
+
+    await act(async () => {
+      findButton(container, 'Sync Calendars').click();
+    });
+
+    expect(apiGet.mock.calls.filter(([path]) => path === '/api/events')).toHaveLength(2);
   });
 });

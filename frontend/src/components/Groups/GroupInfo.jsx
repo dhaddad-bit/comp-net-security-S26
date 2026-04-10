@@ -16,6 +16,7 @@ import React, { useState, useEffect } from 'react';
 
 // API utilities - apiGet and apiPost for backend group and invite token requests
 import { apiGet, apiPost } from '../../api.js';
+import { useModalAccessibility } from '../common/useModalAccessibility.js';
 
 // CSS - groupsModal.css provides standard modal styling (overlay, content container, buttons, form inputs)
 import '../../css/groupsModal.css'; 
@@ -34,6 +35,10 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
     const [members, setMembers] = useState([]);
     const [inviteLink, setInviteLink] = useState("");
     const [copyStatus, setCopyStatus] = useState("idle");
+    const { dialogRef, titleId, descriptionId } = useModalAccessibility({
+        isOpen: true,
+        onClose
+    });
     
 
     // Load group member list and generate invite link when component mounts or groupId changes
@@ -96,17 +101,31 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
         });
 
         if (inviteResponse.invite) {
-            setInviteLink('https://' + inviteResponse.invite)
+            const rawInvite = String(inviteResponse.invite).trim();
+            const normalizedInvite = /^https?:\/\//i.test(rawInvite) ? rawInvite : `https://${rawInvite}`;
+            setInviteLink(normalizedInvite);
         } 
 
     }
 
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
+        <div className="modal-overlay" onClick={onClose}>
+            <div
+                className="modal-content"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                aria-describedby={descriptionId}
+                ref={dialogRef}
+                tabIndex={-1}
+                onClick={(event) => event.stopPropagation()}
+            >
                 {/* Fallback to 'Group' if name isn't passed */}
-                <h2 className="modal-title">{groupName || 'Group'} Info</h2> 
+                <h2 className="modal-title" id={titleId}>{groupName || 'Group'} Info</h2>
+                <p id={descriptionId} className="modal-description">
+                    Review group members and copy an invitation link.
+                </p>
                 
                 <h3 className="modal-label members-title">Members</h3>
                 {loading ? (
@@ -143,7 +162,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
                 </div>
 
                 <div className="modal-actions">
-                    <button className="primary-btn" onClick={onClose}>
+                    <button className="primary-btn" onClick={onClose} aria-label="Close group info modal">
                         Close
                     </button>
                 </div>

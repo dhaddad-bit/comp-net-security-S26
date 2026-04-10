@@ -7,7 +7,7 @@ Initial Author(s): David Haddad
 Not used in final project.
 */
 
-import { BlockingLevel } from "../types/algorithm_types.js";
+import { BlockingLevel } from "./types/algorithm_types.js";
 
 const VALID_BLOCKING_LEVELS = new Set(Object.values(BlockingLevel));
 const SOURCE_MANUAL = "manual";
@@ -103,7 +103,7 @@ export class EventStore {
    * @param {string} [args.blockingLevel] - defaults to B3 for MVP
    * @param {string} [args.title]
    * @param {string} [args.eventRef]
-   * @returns {import("../types/algorithm_types.js").EventInterval}
+   * @returns {import("./types/algorithm_types.js").EventInterval}
    */
   addManualEvent({ userId, startMs, endMs, blockingLevel, title, eventRef } = {}) {
     validateInterval({ userId, startMs, endMs });
@@ -199,7 +199,7 @@ export class EventStore {
    * @param {string} args.userId
    * @param {string} args.eventRef
    * @param {string} args.blockingLevel
-   * @returns {{applied:boolean,event:import("../types/algorithm_types.js").EventInterval}}
+   * @returns {{applied:boolean,event:import("./types/algorithm_types.js").EventInterval}}
    */
   setGoogleEventPriority({ userId, eventRef, blockingLevel } = {}) {
     assertNonEmptyString(userId, "userId");
@@ -239,7 +239,7 @@ export class EventStore {
    * @param {string} args.userId
    * @param {boolean} [args.includeManual=true]
    * @param {boolean} [args.includeGoogle=true]
-   * @returns {import("../types/algorithm_types.js").EventInterval[]}
+   * @returns {import("./types/algorithm_types.js").EventInterval[]}
    */
   getUserEvents({ userId, includeManual = true, includeGoogle = true } = {}) {
     assertNonEmptyString(userId, "userId");
@@ -268,7 +268,7 @@ export class EventStore {
    * @param {string} args.userId
    * @param {boolean} [args.includeManual=true]
    * @param {boolean} [args.includeGoogle=true]
-   * @returns {import("../types/algorithm_types.js").ParticipantSnapshot}
+   * @returns {import("./types/algorithm_types.js").ParticipantSnapshot}
    */
   getParticipantSnapshot({ userId, includeManual = true, includeGoogle = true } = {}) {
     const events = this.getUserEvents({ userId, includeManual, includeGoogle });
@@ -280,7 +280,7 @@ export class EventStore {
    * @param {object} args
    * @param {boolean} [args.includeManual=true]
    * @param {boolean} [args.includeGoogle=true]
-   * @returns {import("../types/algorithm_types.js").ParticipantSnapshot[]}
+   * @returns {import("./types/algorithm_types.js").ParticipantSnapshot[]}
    */
   getAllParticipantSnapshots({ includeManual = true, includeGoogle = true } = {}) {
     const userIds = new Set([

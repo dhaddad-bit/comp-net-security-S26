@@ -15,6 +15,7 @@ Purpose: Provides component rendering and React Hooks used for local state and l
 Reason Included: This file is a functional React UI component that needs `useState` and `useEffect`.
 */
 import React, { useEffect, useState } from 'react';
+import { useModalAccessibility } from '../common/useModalAccessibility';
 
 /*
 Stylesheet: ../../css/calendar.css
@@ -88,6 +89,11 @@ export default function PetitionActionModal({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [inlineError, setInlineError] = useState('');
+  const { dialogRef, titleId, descriptionId } = useModalAccessibility({
+    isOpen: Boolean(open && petition),
+    onClose,
+    disableClose: submitting
+  });
 
   /**
    * Clears inline error state whenever the modal closes or petition context changes.
@@ -255,16 +261,25 @@ export default function PetitionActionModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-shell" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={() => { if (!submitting) onClose(); }}>
+      <div
+        className="modal-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        ref={dialogRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="cancel-btn" onClick={onClose} disabled={submitting}>
+          <h2 id={titleId}>{title}</h2>
+          <button className="cancel-btn" onClick={onClose} disabled={submitting} aria-label="Close petition dialog">
             ×
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" id={descriptionId}>
           <p><strong>Group:</strong> {groupName || `Group ${petition.groupId ?? petition.group_id}`}</p>
           <p><strong>When:</strong> {formatDateTimeRange(petition)}</p>
           <p><strong>Status:</strong> {status}</p>

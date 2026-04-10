@@ -47,10 +47,27 @@ require('dotenv').config({
 const frontend = process.env.FRONTEND_URL;
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
+const devFrontendOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+const requiredEnv = [
+  'SESSION_SECRET',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_REDIRECT_URI'
+];
+
+if (isProduction) {
+  requiredEnv.push('FRONTEND_URL');
+}
+
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnv.join(', ')}`);
+}
 
 if (!isProduction) {
   app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: devFrontendOrigin,
     credentials: true
   }));
 }
@@ -210,7 +227,7 @@ app.post('/logout', (req, res) => {
  */
 app.get('/api/test-db', async (req, res) => {
   try {
-    const result = await testConnection();
+    const result = await db.testConnection();
     res.json(result);
   } catch (error) {
     res.status(500).json({ 

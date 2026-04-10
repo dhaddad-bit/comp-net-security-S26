@@ -142,19 +142,16 @@ export default function Main() {
         });
     };
 
-    //Loads calendar events from the backend and triggers a calendar refresh.
-    const fetchEvents = async () => {
+    // Triggers a Google sync then refreshes the local calendar view.
+    const syncCalendarsAndRefresh = async () => {
         try {
-            // get events from endpoint
             await apiGet('/api/events');
-            // refresh the calednar
             setCalRefreshSignal((prev) => prev + 1);
         } catch (error) {
-            // set error if fails
-            console.error('Error loading events:', error);
-            setError(err.message);
+            console.error('Error syncing calendars:', error);
+            setError(error.message);
         }
-    }
+    };
 
     // Loads the current user's groups and stores them in local state.
     const fetchGroups = async () => {
@@ -222,7 +219,7 @@ export default function Main() {
     // fetch all user info needed to display on main page
     useEffect(() => {
         fetchUsername();
-        fetchEvents();
+        syncCalendarsAndRefresh();
         fetchGroups();
         fetchPendingInvite();
     }, []);
@@ -287,13 +284,7 @@ export default function Main() {
 
     // Synchronizes calendar data and forces a calendar refresh regardless of API outcome.
     const handleSyncCals = async () => {
-        try {
-            await apiGet('/api/events');
-        } catch (error) {
-            console.warn('Sync calendars endpoint failed; forcing UI refresh anyway.', error);
-        } finally {
-            setCalRefreshSignal((prev) => prev + 1);
-        }
+        await syncCalendarsAndRefresh();
     }
 
 

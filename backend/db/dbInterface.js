@@ -21,6 +21,10 @@ require('dotenv').config({
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+if (isProduction && !process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required when NODE_ENV=production');
+}
+
 const pool = new Pool(
     isProduction 
     ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
@@ -361,13 +365,14 @@ const deleteEventsByTitle = async(userId, title) => {
 /**
  * Deletes events for one calendar that ended before the provided cutoff date.
  * @param {bigint} cal_id
- * @param {bigint} date
+ * @param {string|Date} date
  */
 const cleanEvents = async(cal_id, date) => {
     await pool.query(
         `DELETE FROM cal_event 
         WHERE calendar_id = ($1) 
-        AND event_end < ($2)`,
+        AND event_end < ($2)
+        AND (gcal_event_id IS NULL OR gcal_event_id NOT LIKE 'manual-%')`,
         [   
             cal_id,
             date
