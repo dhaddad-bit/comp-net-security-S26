@@ -22,13 +22,13 @@ import { ErrorContext } from '../../ErrorContext';
 import '../../css/calendar.css';
 
 // Import our modular tools
-import { AVAILABILITY_VIEWS, DEFAULT_GROUP_VIEW, FALLBACK_VIEW, AVAILABILITY_VIEW_LABELS } from './calendarConstants';
+import { AVAILABILITY_VIEWS, FALLBACK_VIEW, AVAILABILITY_VIEW_LABELS } from './calendarConstants';
 import { 
   getStartOfWeek, isCurrentWeek, formatWeekRange, isSameLocalDay, 
-  formatAvailabilityTooltip, getViewStatsFromBlock, processEvents, 
-  mergeAvailabilityBlocks, mapPetitionToCalendarEvent, getAvailabilityColor, 
-  getAvailabilityOpacity, filterAvailabilityAgainstPersonalEvents
+  formatAvailabilityTooltip, mapPetitionToCalendarEvent, getAvailabilityColor, 
+  getAvailabilityOpacity
 } from './calendarUtils';
+import useHeatMapController from './useHeatMapController';
 
 import CalendarEventBlock from './CalendarEventBlock';
 import EventClickModal from './EventClickModal';
@@ -70,9 +70,6 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
   // Derive simple constants from state
   const petitionDraftActive = draftEvent?.mode === 'petition';
   const selectedGroupKey = groupId == null ? null : String(groupId);
-  const selectedAvailabilityView = selectedGroupKey
-    ? (availabilityViewByGroup[selectedGroupKey] || DEFAULT_GROUP_VIEW)
-    : DEFAULT_GROUP_VIEW;
 
   // --- API DATA FETCHING ---
 
@@ -189,11 +186,23 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
 
   // --- EVENT HANDLERS ---
   
-  // Ignores view change when no group is selected or view is not recognized
-  const handleAvailabilityViewChange = (viewKey) => {
-    if (!selectedGroupKey || !AVAILABILITY_VIEWS.includes(viewKey)) return;
-    setAvailabilityViewByGroup((currentMap) => ({ ...currentMap, [selectedGroupKey]: viewKey }));
-  };
+  const {
+    allEvents,
+    effectiveAvailabilityView,
+    handleAvailabilityViewChange,
+    hasMultiViewAvailability,
+    legendCounts,
+    legendMaxCount
+  } = useHeatMapController({
+    groupId,
+    rawAvailabilityBlocks,
+    availabilityViewByGroup,
+    selectedGroupKey,
+    rawEvents,
+    draftEvent,
+    visiblePetitions,
+    setAvailabilityViewByGroup
+  });
 
   // handles which modal to open, petition or basic event, when user clicks on event
   const handleEventClick = (event) => {
@@ -211,87 +220,6 @@ export default function CustomCalendar({ refreshTrigger, groupId, draftEvent, on
   const handlePrevWeek = () => setWeekStart(new Date(weekStart.setDate(weekStart.getDate() - 7)));
 
   // --- DATA PROCESSING FOR RENDER ---
-  
-  // Inject the draft event (drag-and-drop preview) into the raw array if it exists
-  const finalRawEvents = [...rawEvents];
-  if (draftEvent) finalRawEvents.push({ ...draftEvent });
-
-  // Checks if user has multiple availability blocks
-  const hasMultiViewAvailability = rawAvailabilityBlocks.some(
-    b => b && typeof b.views === 'object' && b.views !== null
-  );
-
-  // Chooses either the selected availability view or fallback view if needed
-  const effectiveAvailabilityView = hasMultiViewAvailability && AVAILABILITY_VIEWS.includes(selectedAvailabilityView)
-    ? selectedAvailabilityView : FALLBACK_VIEW;
-
-  // Process the raw backend blocks
-  const rawProjectedAvailability = (groupId ? rawAvailabilityBlocks : []).map((block, i) => {
-    const { availableCount } = getViewStatsFromBlock(block, effectiveAvailabilityView);
-    return { title: '', availLvl: availableCount, start: block.start, end: block.end, event_id: `avail-${i}`, mode: 'avail' };
-  });
-
-  // Filter the backend blocks against the user's personal calendar
-  const projectedAvailability = filterAvailabilityAgainstPersonalEvents(
-      rawProjectedAvailability, 
-      rawEvents, 
-      effectiveAvailabilityView
-  );
-
-  // Merge adjacent 15-minute blocks for DOM performance
-  const consolidatedAvailability = mergeAvailabilityBlocks(projectedAvailability);
-  const groupAvailability = consolidatedAvailability.map((event, i) => ({ ...event, event_id: `avail-merged-${i}` }));
-
-  // Find the absolute highest availability count to scale the legend colors
-  const availabilityLegendMeta = (groupId ? rawAvailabilityBlocks : []).reduce((meta, block) => {
-    const { availableCount, totalCount } = getViewStatsFromBlock(block, effectiveAvailabilityView);
-    if (availableCount > meta.maxVisibleCount) meta.maxVisibleCount = availableCount;
-    if (totalCount > meta.maxTotalCount) meta.maxTotalCount = totalCount;
-    return meta;
-  }, { maxVisibleCount: 0, maxTotalCount: 0 });
-
-  let legendMaxCount = availabilityLegendMeta.maxVisibleCount;
-  if (availabilityLegendMeta.maxTotalCount > 0) {
-    legendMaxCount = Math.min(legendMaxCount, availabilityLegendMeta.maxTotalCount);
-  }
-  
-  const legendCounts = legendMaxCount > 0 ? Array.from({ length: legendMaxCount }, (_, idx) => idx + 1) : [];
-
-  // Finally, run all arrays through the core date processor to handle midnight splits
-  const allEvents = processEvents(finalRawEvents).concat(processEvents(groupAvailability), processEvents(visiblePetitions));
-
-  // --- NEW: CARD STACK OVERLAP LOGIC ---
-  // 1. Sort all events chronologically. 
-  // If they start at the exact same time, force the green 'avail' blocks to be processed first.
-  allEvents.sort((a, b) => {
-    if (a.start.getTime() !== b.start.getTime()) {
-      return a.start.getTime() - b.start.getTime();
-    }
-    if (a.mode === 'avail' && b.mode !== 'avail') return -1;
-    if (a.mode !== 'avail' && b.mode === 'avail') return 1;
-    return 0;
-  });
-
-  // 2. Loop through and tag overlapping personal/petition events
-  let currentOverlapIndex = 0;
-  for (let i = 0; i < allEvents.length; i++) {
-    // Never shift the green background heatmap blocks
-    if (allEvents[i].mode === 'avail') {
-      allEvents[i].overlapIndex = 0;
-    } else {
-      // If this event starts at the exact same time as the PREVIOUS regular event, stack it!
-      if (i > 0 && 
-          allEvents[i].start.getTime() === allEvents[i-1].start.getTime() && 
-          allEvents[i-1].mode !== 'avail'
-      ) {
-        currentOverlapIndex++;
-      } else {
-        currentOverlapIndex = 0; // Reset for a new time block
-      }
-      allEvents[i].overlapIndex = currentOverlapIndex;
-    }
-  }
-  // -------------------------------------
 
   // Build the array of 7 days for the column headers
   const days = Array.from({ length: 7 }, (_, i) => {

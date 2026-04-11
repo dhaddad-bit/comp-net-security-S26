@@ -211,6 +211,10 @@ function createHttpError(status, message, extra = {}) {
  * @throws {Error} HTTP-style validation error for missing/invalid fields
  */
 function parseCreatePetitionInput(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw createHttpError(400, "request body must be a JSON object");
+  }
+
   // Normalize the legacy and modern petition payload shapes into one validated object.
   const startMs = parseEpochMs(body?.start);
   const endMs = parseEpochMs(body?.end);
@@ -220,11 +224,20 @@ function parseCreatePetitionInput(body) {
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
     throw createHttpError(400, "start and end are required");
   }
+  if (!Number.isSafeInteger(startMs) || !Number.isSafeInteger(endMs)) {
+    throw createHttpError(400, "start and end must be valid epoch milliseconds");
+  }
   if (endMs <= startMs) {
     throw createHttpError(400, "end must be greater than start");
   }
+  if (startMs <= 0 || endMs <= 0) {
+    throw createHttpError(400, "start and end must be positive epoch milliseconds");
+  }
   if (!title) {
     throw createHttpError(400, "title is required");
+  }
+  if (title.length > 255) {
+    throw createHttpError(400, "title must be 255 characters or fewer");
   }
   if (!blockingLevel) {
     throw createHttpError(400, "blocking_level must be B1, B2, or B3");

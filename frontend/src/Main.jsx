@@ -20,6 +20,7 @@ import React, { useState, useEffect, useContext } from 'react';
 
 /* UI modules used by Main to compose the primary page layout and flows. */
 import Calendar from './components/Calendar/CustomCalendar';
+import CalendarErrorBoundary from './components/Calendar/CalendarErrorBoundary';
 import Groups from './components/Groups/Groups';
 import PendingInviteModal from './components/Groups/PendingInviteModal';
 import EventSidebar from './components/Calendar/EventSidebar';
@@ -364,13 +365,15 @@ export default function Main() {
                 {/* The Calendar always renders.*/}
                 <section className="calendar-main">
             <div className="calendar-home-panel">
-                <Calendar 
-                    refreshTrigger={calRefreshSignal} 
-                    draftEvent={draftEvent} 
-                    groupId={selectedGroupId}
-                    onCellClick={handleCalendarCellClick}
-                    onDraftDrop={handleDraftDrop}
-                />
+                <CalendarErrorBoundary>
+                    <Calendar 
+                        refreshTrigger={calRefreshSignal} 
+                        draftEvent={draftEvent} 
+                        groupId={selectedGroupId}
+                        onCellClick={handleCalendarCellClick}
+                        onDraftDrop={handleDraftDrop}
+                    />
+                </CalendarErrorBoundary>
             </div>
         </section>
 

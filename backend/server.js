@@ -97,7 +97,8 @@ app.use(session({
 // Register the group routes before the frontend catch-all runs.
 groupModule(app);
 
-app.use(express.static(path.join(__dirname, "..", "frontend", "build")));
+const frontendDistDir = path.join(__dirname, "..", "frontend", "dist");
+app.use(express.static(frontendDistDir));
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -122,7 +123,7 @@ const PORT = process.env.PORT || 3000;
  */
 app.post('/', (req, res) => {
   if (typeof req.session.userId !== "undefined") {
-    res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
+    res.sendFile(path.join(frontendDistDir, "index.html"));
   } else {
     res.redirect('/login');
   }
@@ -133,7 +134,7 @@ app.post('/', (req, res) => {
  * render the login experience client-side.
  */
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
+  res.sendFile(path.join(frontendDistDir, "index.html"));
 });
 
 // --- api routes ---
@@ -949,8 +950,18 @@ app.get('/api/groups/:groupId/availability', availabilityController.getAvailabil
  * and redirects unauthenticated users to the login page.
  */
 app.use((req, res) => {
+  // Keep API/auth/health routes out of the SPA fallback path.
+  if (
+    req.path.startsWith('/api/') ||
+    req.path.startsWith('/auth/') ||
+    req.path === '/oauth2callback' ||
+    req.path === '/health'
+  ) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
   if (req.session.userId) {
-    res.sendFile(path.join(__dirname, "..", "frontend", "build", "index.html"));
+    res.sendFile(path.join(frontendDistDir, "index.html"));
   } else {
     res.redirect('/login');
   }
