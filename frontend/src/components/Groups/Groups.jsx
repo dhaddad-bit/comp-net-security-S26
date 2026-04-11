@@ -53,7 +53,7 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
     const fetchGroups = async () => {
         setLoading(true);
         try {
-            const response = await apiGet('/user/groups');
+            const response = await apiGet('/api/user/groups');
             if (response && response.groups) {
                 setGroups(response.groups);
             } else {
@@ -77,7 +77,7 @@ export default function Groups({ selectedGroupId, onSelectGroup, onOpenPetition,
     const handleLeaveGroup = async (groupId) => {
         console.log("leaving group", groupId);
         try {
-            await apiPost('/group/leave', { groupId: groupId });
+            await apiPost('/api/group/leave', { groupId: groupId });
             // Refresh list after leaving
             fetchGroups();
             if (Number(selectedGroupId) === Number(groupId)) {

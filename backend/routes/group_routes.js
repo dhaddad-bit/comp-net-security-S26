@@ -10,9 +10,9 @@ Interacts with frontend via Express routes to handle operations that
 support frontend Groups UI flows.
 */
 
-module.exports = function registerGroupRoutes(app, { db }) {
+module.exports = function registerGroupRoutes(router, { db }) {
   // Create a new group and add the current user as the first member.
-  app.post("/group/creation", async (req, res) => {
+  router.post("/group/creation", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -39,7 +39,7 @@ module.exports = function registerGroupRoutes(app, { db }) {
   });
 
   // Return the groups tied to the current authenticated user.
-  app.get("/user/groups", async (req, res) => {
+  router.get("/user/groups", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -57,7 +57,7 @@ module.exports = function registerGroupRoutes(app, { db }) {
   });
 
   // Return one group's metadata plus the current member list.
-  app.get("/group/:groupId(\\d+)", async (req, res) => {
+  router.get("/group/:groupId(\\d+)", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -78,7 +78,7 @@ module.exports = function registerGroupRoutes(app, { db }) {
   });
 
   // Remove the current user from the selected group.
-  app.post("/group/leave", async (req, res) => {
+  router.post("/group/leave", async (req, res) => {
     try {
       if (!req.session.userId || !req.session.isAuthenticated) {
         return res.status(401).json({ error: "Unauthorized" });

@@ -157,7 +157,7 @@ export default function Main() {
     const fetchGroups = async () => {
         try {
             // Hit the ACTUAL endpoint
-            const response = await apiGet('/user/groups'); 
+            const response = await apiGet('/api/user/groups'); 
             
             // The backend returns { success: true, groups: [...] }
             // We need to extract the groups array specifically.
@@ -196,8 +196,8 @@ export default function Main() {
     // Logs out the current user and redirects to logout/login routes.
     const handleLogout = async () => {
         try {
-            await apiPost('/logout'); 
-            window.location.href = '/logout'; 
+            await apiPost('/api/logout'); 
+            window.location.href = '/login'; 
         } catch (err) {
            window.location.href = '/login';
         }

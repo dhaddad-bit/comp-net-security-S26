@@ -7,10 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": "http://localhost:3000",
-      "/auth": "http://localhost:3000",
-      "/group": "http://localhost:3000",
-      "/logout": "http://localhost:3000",
-      "/user": "http://localhost:3000"
+      "/auth": "http://localhost:3000"
     }
   },
   test: {

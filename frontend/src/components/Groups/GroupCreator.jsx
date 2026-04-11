@@ -167,7 +167,7 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
 
         try {
             // send signal to create group to backend
-            const creationMeta = await apiPostWithMeta(`/group/creation?group_name=${encodeURIComponent(groupName)}`, {});
+            const creationMeta = await apiPostWithMeta(`/api/group/creation?group_name=${encodeURIComponent(groupName)}`, {});
             const creationResponse = creationMeta.data;
 
             // on successful group creation, change frontend display
@@ -184,7 +184,7 @@ export default function GroupCreatorModal({ onClose, onGroupCreated, onDone }) {
                 // send emails to selected users
                 try {
                     // send signal to invite users
-                    const inviteResponse = await apiPost("/group/invite", {
+                    const inviteResponse = await apiPost("/api/group/invite", {
                         group_id: newGroupId
                     });
 

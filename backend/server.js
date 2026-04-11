@@ -213,7 +213,7 @@ app.post('/api/select-calendars', async (req, res) => {
 /**
  * Logs the current user out by destroying the active session.
  */
-app.post('/logout', (req, res) => {
+app.post('/api/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       return res.status(500).json({ success: false, error: 'Failed to logout' });

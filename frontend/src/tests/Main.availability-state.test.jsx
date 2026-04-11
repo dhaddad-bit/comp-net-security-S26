@@ -85,7 +85,7 @@ describe('Main availability selection state', () => {
     apiGet.mockImplementation(async (path) => {
       if (path === '/api/events') return [];
       if (path === '/api/me') return { user: { username: 'tester' } };
-      if (path === '/user/groups') return { success: true, groups: [{ group_id: 7, group_name: 'Group 7' }] };
+      if (path === '/api/user/groups') return { success: true, groups: [{ group_id: 7, group_name: 'Group 7' }] };
       if (path === '/api/group-invite/pending') return { ok: true, hasPendingInvite: false };
       return [];
     });

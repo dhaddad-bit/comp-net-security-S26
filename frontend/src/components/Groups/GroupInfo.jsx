@@ -96,7 +96,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
     // Generate a new invite link by requesting a token from the backend; prepend domain to form full URL
     const makeInviteLink = async () => {
         setCopyStatus("idle");
-        const inviteResponse = await apiPost("/group/invite", {
+        const inviteResponse = await apiPost("/api/group/invite", {
             group_id: groupId
         });
 

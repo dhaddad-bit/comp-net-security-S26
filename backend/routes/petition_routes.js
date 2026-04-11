@@ -327,12 +327,12 @@ function decoratePetitionForUser(petition, userId) {
 /**
  * Registers petition-related API routes and middleware on an Express application instance.
  *
- * @param {Object} app - Express app instance
+ * @param {Object} router - Express router instance
  * @param {{db:Object}} deps 
  */
-function registerPetitionRoutes(app, { db }) {
+function registerPetitionRoutes(router, { db }) {
   // Verify that the petition tables exist before the frontend opens petition UI.
-  app.get("/api/groups/:groupId/petitions/preflight", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
+  router.get("/groups/:groupId/petitions/preflight", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       await db.assertPetitionSchemaReady();
       return res.status(200).json({
@@ -347,7 +347,7 @@ function registerPetitionRoutes(app, { db }) {
   });
 
   // Create a petition for one group after auth and membership checks pass.
-  app.post("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
+  router.post("/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const parsed = parseCreatePetitionInput(req.body);
 
@@ -368,7 +368,7 @@ function registerPetitionRoutes(app, { db }) {
   });
 
   // List the petitions for the currently selected group.
-  app.get("/api/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
+  router.get("/groups/:groupId/petitions", withTraceId, requireAuth, requireGroupMember(db), async (req, res) => {
     try {
       const petitions = await db.listGroupPetitions({
         groupId: req.groupId,
@@ -386,7 +386,7 @@ function registerPetitionRoutes(app, { db }) {
   });
 
   // List every petition visible to the current user.
-  app.get("/api/petitions", withTraceId, requireAuth, async (req, res) => {
+  router.get("/petitions", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitions = await db.listUserPetitions({ userId: req.userId });
       return res.status(200).json(
@@ -401,7 +401,7 @@ function registerPetitionRoutes(app, { db }) {
   });
 
   // Record one user's ACCEPT or DECLINE response.
-  app.post("/api/petitions/:petitionId/respond", withTraceId, requireAuth, async (req, res) => {
+  router.post("/petitions/:petitionId/respond", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);
       if (!Number.isInteger(petitionId) || petitionId <= 0) {
@@ -427,7 +427,7 @@ function registerPetitionRoutes(app, { db }) {
   });
 
   // Let a creator delete their own petition.
-  app.delete("/api/petitions/:petitionId", withTraceId, requireAuth, async (req, res) => {
+  router.delete("/petitions/:petitionId", withTraceId, requireAuth, async (req, res) => {
     try {
       const petitionId = Number(req.params.petitionId);
       if (!Number.isInteger(petitionId) || petitionId <= 0) {

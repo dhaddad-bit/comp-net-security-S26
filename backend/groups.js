@@ -9,6 +9,7 @@ System Context:
 Handles the routes associated with groups. Originally was a separate file
 with the endpoints for groups.
 */
+const express = require("express");
 const db = require("./db/dbInterface");
 const inviteToken = require("./inviteToken");
 const registerGroupRoutes = require("./routes/group_routes");
@@ -17,6 +18,7 @@ const registerPetitionRoutes = require("./routes/petition_routes");
 const { createInviteStateService } = require("./services/invite_state_service");
 
 module.exports = function(app) {
+  const apiRouter = express.Router();
   const inviteState = createInviteStateService({
     isProduction: process.env.NODE_ENV === "production"
   });
@@ -26,7 +28,8 @@ module.exports = function(app) {
   Group routes handle membership and group details.
   Invite routes handle invite links, email sends, and pending-invite state.
   */
-  registerGroupRoutes(app, { db });
-  registerInviteRoutes(app, { db, inviteToken, inviteState });
-  registerPetitionRoutes(app, { db });
+  registerGroupRoutes(apiRouter, { db });
+  registerInviteRoutes(apiRouter, { db, inviteToken, inviteState });
+  registerPetitionRoutes(apiRouter, { db });
+  app.use("/api", apiRouter);
 };
