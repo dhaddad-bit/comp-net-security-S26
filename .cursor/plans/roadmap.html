@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS434/534 Project & Deployment Roadmap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chosen Palette: Cyber-Academic (Slate-50 background, Blue-900 primary, Emerald-600 for progress/success, Amber-500 for warnings/alerts) -->
+    <!-- Application Structure Plan: A dashboard-style SPA prioritizing a unified view of academic requirements and practical deployment steps. It begins with an analytical overview (charts) to prove the synergy between the syllabus and the project. Then, it transitions to a functional, interactive 8-week timeline to guide the student's actions. Finally, it provides a functional deployment checklist. This structure is chosen to reduce cognitive load, allowing the user to plan sequentially while keeping the big picture in mind. -->
+    <!-- Visualization & Content Choices: 
+         1. Radar Chart (Chart.js): Goal - Compare class syllabus topics with project requirements to show alignment. Interaction - Hover for exact values. Justification - Best way to show multidimensional overlap. 
+         2. Interactive Roadmap (HTML/Tailwind + JS): Goal - Organize the 8-week plan. Interaction - Click a week to view details. Justification - Prevents overwhelming text blocks, encourages sequential focus. 
+         3. Dynamic Checklist (HTML/JS): Goal - Track deployment readiness. Interaction - Click to check off, updates progress bar. Justification - Gamifies the deployment process and ensures no security steps are missed. 
+         Confirming NO SVG/Mermaid. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #0f172a; /* slate-900 */
+        }
+        
+        /* STRICT CHART CONTAINER STYLING AS REQUESTED */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Custom Scrollbar for inner content */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        .tab-btn.active {
+            background-color: #1e3a8a; /* blue-900 */
+            color: white;
+            border-color: #1e3a8a;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-blue-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">🚀 Social Scheduler Launchpad</h1>
+                <p class="text-blue-200 text-sm mt-1">Bridging CS 434/534 Theory with GCP Production Deployment</p>
+            </div>
+            <div class="text-right hidden sm:block">
+                <span class="text-xs bg-blue-800 px-3 py-1 rounded-full border border-blue-700">Auth: Google OAuth 2.0</span>
+                <span class="text-xs bg-blue-800 px-3 py-1 rounded-full border border-blue-700 ml-2">Infra: Google Cloud</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+
+        <!-- Intro Section -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-xl font-semibold text-slate-800 mb-2">🎯 Strategic Overview</h2>
+            <p class="text-slate-600 mb-4">
+                This dashboard synthesizes your academic goals for <strong>CS 434/534 (Computer and Network Security II)</strong> with your practical goal of deploying a public Social Scheduler. By aligning textbook concepts (Authentication, Cloud Security, Threat Modeling) with Google Cloud Platform (GCP) realities, you can build a highly secure app that doubles as an outstanding class project.
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center mt-6">
+                <div>
+                    <h3 class="text-sm uppercase font-bold text-slate-400 tracking-wider mb-4 text-center">Skill Synergy Analysis</h3>
+                    <div class="chart-container">
+                        <canvas id="synergyChart"></canvas>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-md">
+                        <h4 class="font-semibold text-blue-900">Google OAuth 2.0 Reality Check</h4>
+                        <p class="text-sm text-blue-800 mt-1">Because you are requesting Calendar data, Google classifies this as a <strong>Restricted or Sensitive Scope</strong>. This means before you can go public, your app must pass a <em>Google Trust & Safety review</em>, requiring a clear Privacy Policy, secure data handling (Ch 1. Confidentiality), and proper OAuth token storage (Ch 2. Authentication).</p>
+                    </div>
+                    <div class="bg-emerald-50 border-l-4 border-emerald-600 p-4 rounded-r-md">
+                        <h4 class="font-semibold text-emerald-900">Academic Advantage</h4>
+                        <p class="text-sm text-emerald-800 mt-1">Documenting your architecture, threat models, and OAuth implementation perfectly fulfills the CS 534/434 class project requirement. Your deployment <em>is</em> your research.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8 Week Interactive Roadmap -->
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-slate-800">📅 8-Week Integration Roadmap</h2>
+                <span class="text-sm text-slate-500 italic">Click a week to explore details</span>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Timeline Navigation -->
+                <div class="lg:col-span-4 grid grid-cols-2 lg:grid-cols-1 gap-2 custom-scroll max-h-[500px] overflow-y-auto pr-2" id="week-nav-container">
+                    <!-- Buttons generated by JS -->
+                </div>
+
+                <!-- Detail Pane -->
+                <div class="lg:col-span-8 bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                    <div class="bg-slate-800 text-white p-4" id="detail-header">
+                        <h3 class="text-xl font-bold" id="detail-title">Select a Week</h3>
+                        <p class="text-slate-300 text-sm mt-1" id="detail-subtitle">Loading...</p>
+                    </div>
+                    
+                    <div class="p-6 flex-grow overflow-y-auto custom-scroll" id="detail-content">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- Academic Side -->
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <h4 class="text-blue-700 font-bold mb-3 flex items-center border-b border-blue-200 pb-2">
+                                    <span class="mr-2">📚</span> Class Focus (CS 434/534)
+                                </h4>
+                                <div id="academic-content" class="text-sm text-slate-700 space-y-2">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Practical Side -->
+                            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <h4 class="text-emerald-700 font-bold mb-3 flex items-center border-b border-emerald-200 pb-2">
+                                    <span class="mr-2">💻</span> Project & GCP Action
+                                </h4>
+                                <div id="project-content" class="text-sm text-slate-700 space-y-2">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Google Requirements Alert -->
+                        <div id="google-alert" class="mt-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-md hidden">
+                            <h4 class="font-semibold text-amber-900 text-sm uppercase tracking-wide">⚠️ Google App Verification Note</h4>
+                            <p class="text-sm text-amber-800 mt-1" id="google-alert-text"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deployment Security Checklist -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">🛡️ Production Readiness Checklist</h2>
+                    <p class="text-slate-500 text-sm">Aligns with Textbook Ch 8 (Cloud Security) & Firewall topologies.</p>
+                </div>
+                <div class="w-full md:w-64 mt-4 md:mt-0">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="font-medium text-slate-700">Deployment Readiness</span>
+                        <span id="progress-text" class="font-bold text-blue-600">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="checklist-container">
+                <!-- Checkboxes populated by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 py-6 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
+            <p>Designed for CS 434/534 Integration. Remember: Security is a process, not a product.</p>
+            <p class="mt-2 text-xs">References: Pfleeger's "Security in Computing", UO Syllabus, Google Cloud Documentation.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. Data Models ---
+
+        const weeksData = [
+            {
+                id: 1,
+                title: "Week 1: Threat Modeling & Architecture",
+                subtitle: "Laying the foundation for security and infrastructure.",
+                academic: `
+                    <strong>Textbook Concept:</strong> Chapter 1 - Vulnerability-Threat-Control Paradigm.<br>
+                    <strong>Action:</strong> Define the assets (user calendars, tokens) and potential attackers.<br>
+                    <strong>Deliverable:</strong> Draft a simple architecture diagram and identify trust boundaries.
+                `,
+                project: `
+                    <strong>GCP Setup:</strong> Create Google Cloud Project. Set up billing limits.<br>
+                    <strong>Architecture:</strong> Decide on backend (e.g., Node.js/Express, Python/Flask) and frontend separation.<br>
+                    <strong>Action:</strong> Initialize Git repo, set up basic routing.
+                `,
+                googleAlert: "Do not put production keys in your code. Set up .env files immediately."
+            },
+            {
+                id: 2,
+                title: "Week 2: Authentication & OAuth Setup",
+                subtitle: "Identifying the user securely.",
+                academic: `
+                    <strong>Textbook Concept:</strong> Chapter 2 - Authentication (Something you have/know).<br>
+                    <strong>Concept:</strong> Federated Identity vs Local Auth.<br>
+                    <strong>Deliverable:</strong> Understand the OAuth 2.0 flow (Authorization Grant).
+                `,
+                project: `
+                    <strong>GCP Action:</strong> Configure the OAuth Consent Screen (Testing Mode).<br>
+                    <strong>Credentials:</strong> Generate Web Client ID and Secret.<br>
+                    <strong>Implementation:</strong> Build the "Login with Google" button and handle the callback route to exchange auth code for tokens.
+                `,
+                googleAlert: "Define ONLY the exact scopes you need. If you only need to read schedules, use calendar.readonly. Avoid full calendar access if possible to ease the verification process."
+            },
+            {
+                id: 3,
+                title: "Week 3: Authorization & Token Management",
+                subtitle: "Securing access post-login.",
+                academic: `
+                    <strong>Textbook Concept:</strong> Chapter 2 & 8 - Access Control and Cloud Identity.<br>
+                    <strong>Risk:</strong> Token theft (XSS/CSRF).<br>
+                    <strong>Deliverable:</strong> Design a secure session management strategy.
+                `,
+                project: `
+                    <strong>Implementation:</strong> Never store Access/Refresh tokens in LocalStorage.<br>
+                    <strong>Security:</strong> Store tokens in HttpOnly, Secure cookies, or encrypt them in your backend database linked to a session ID.<br>
+                    <strong>Action:</strong> Implement token refresh logic.
+                `,
+                googleAlert: null
+            },
+            {
+                id: 4,
+                title: "Week 4: The Google Verification Prep",
+                subtitle: "Policies, Privacy, and Trust.",
+                academic: `
+                    <strong>Textbook Concept:</strong> Privacy principles and Data Protection.<br>
+                    <strong>Deliverable:</strong> Understand the legal/policy side of software deployment.
+                `,
+                project: `
+                    <strong>Documentation:</strong> Draft a clear Privacy Policy and Terms of Service.<br>
+                    <strong>Hosting:</strong> Host these documents publicly (required by Google).<br>
+                    <strong>Action:</strong> Record a demo video of your app using the Calendar data, which Google requires for verification of sensitive scopes.
+                `,
+                googleAlert: "Google will reject your app if the consent screen branding (logo, name) doesn't match your domain, or if your privacy policy doesn't explicitly state how you use Calendar data."
+            },
+            {
+                id: 5,
+                title: "Week 5: Cloud Infra & IAM Defenses",
+                subtitle: "Locking down the server.",
+                academic: `
+                    <strong>Textbook Concept:</strong> Chapter 8 - Securing IaaS/PaaS. Principle of Least Privilege.<br>
+                    <strong>Deliverable:</strong> Apply access controls to the infrastructure itself.
+                `,
+                project: `
+                    <strong>GCP IAM:</strong> Ensure the service accounts running your backend only have access to necessary APIs, not full project owner rights.<br>
+                    <strong>Secret Manager:</strong> Move Client Secrets and DB passwords to GCP Secret Manager instead of flat environment files.
+                `,
+                googleAlert: null
+            },
+            {
+                id: 6,
+                title: "Week 6: Network Defenses & Firewalls",
+                subtitle: "Protecting against external network threats.",
+                academic: `
+                    <strong>Syllabus/Papers:</strong> DDoS Defenses, Firewalls, DMZ topologies.<br>
+                    <strong>Deliverable:</strong> Understand how to scrub bad traffic at specific layers.
+                `,
+                project: `
+                    <strong>GCP Action:</strong> Setup VPC Firewalls. Only allow HTTP/HTTPS to your web servers. Block direct external access to your database.<br>
+                    <strong>Advanced:</strong> Enable Cloud Armor (WAF) to protect against basic OWASP Top 10 and rate-limit abusive IPs.
+                `,
+                googleAlert: null
+            },
+            {
+                id: 7,
+                title: "Week 7: Application Security Testing",
+                subtitle: "Breaking your own app.",
+                academic: `
+                    <strong>Syllabus:</strong> Penetration testing methodology, Input validation.<br>
+                    <strong>Deliverable:</strong> Conduct a vulnerability assessment of your own code.
+                `,
+                project: `
+                    <strong>Testing:</strong> Test for CSRF on your API endpoints. Ensure CORS policies are strict (only allow your frontend domain).<br>
+                    <strong>Action:</strong> Validate all user inputs. Sanitize any data displayed to prevent XSS.
+                `,
+                googleAlert: "If Google detects malware or deceptive routing on your verified domain, they will revoke your OAuth credentials instantly."
+            },
+            {
+                id: 8,
+                title: "Week 8: Launch & Class Project Finalization",
+                subtitle: "Deploying and documenting the journey.",
+                academic: `
+                    <strong>Class Deliverable:</strong> Write the Class Project Report.<br>
+                    <strong>Action:</strong> Use the architecture, threat models, and GCP configurations designed in Weeks 1-7 as the core of your CS 534/434 paper.
+                `,
+                project: `
+                    <strong>Action:</strong> Push to Production domain.<br>
+                    <strong>GCP Action:</strong> Submit App for final Google Verification (takes 3-5 days).<br>
+                    <strong>Monitoring:</strong> Set up basic logging in GCP Operations Suite to catch errors.
+                `,
+                googleAlert: "Switch the OAuth Consent screen from 'Testing' to 'In Production'. Users will see an 'Unverified App' warning until Google approves your submission."
+            }
+        ];
+
+        const checklistItems = [
+            { id: "chk1", category: "Auth", text: "OAuth Client Secret stored securely (Not in repo/frontend)" },
+            { id: "chk2", category: "Auth", text: "Tokens stored in HttpOnly Cookies or Encrypted DB" },
+            { id: "chk3", category: "Auth", text: "Minimum required scopes requested (calendar.readonly vs calendar)" },
+            { id: "chk4", category: "Infra", text: "GCP Project Billing Alert configured" },
+            { id: "chk5", category: "Infra", text: "VPC Firewall configured (DB isolated from public internet)" },
+            { id: "chk6", category: "Infra", text: "GCP Service Account uses Least Privilege" },
+            { id: "chk7", category: "App", text: "CORS policy restricted to production domain only" },
+            { id: "chk8", category: "App", text: "Rate limiting applied to API endpoints" },
+            { id: "chk9", category: "Policy", text: "Privacy Policy and TOS publicly hosted" },
+            { id: "chk10", category: "Policy", text: "Verification Demo Video recorded" }
+        ];
+
+
+        // --- 2. State Management ---
+        let currentWeek = 1;
+        let checkedItems = new Set();
+        const CHECKLIST_STORAGE_KEY = 'social_scheduler_roadmap_checklist_v1';
+
+        function loadChecklistState() {
+            try {
+                const raw = localStorage.getItem(CHECKLIST_STORAGE_KEY);
+                if (!raw) return;
+
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) return;
+
+                checkedItems = new Set(parsed);
+            } catch (err) {
+                console.warn('Failed to load saved checklist state:', err);
+            }
+        }
+
+        function saveChecklistState() {
+            try {
+                localStorage.setItem(
+                    CHECKLIST_STORAGE_KEY,
+                    JSON.stringify(Array.from(checkedItems))
+                );
+            } catch (err) {
+                console.warn('Failed to save checklist state:', err);
+            }
+        }
+
+
+        // --- 3. UI Generation Functions ---
+
+        function initRoadmap() {
+            const navContainer = document.getElementById('week-nav-container');
+            navContainer.innerHTML = ''; // Clear
+
+            weeksData.forEach(week => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn w-full text-left p-4 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors duration-200 mb-2 focus:outline-none flex items-center justify-between shadow-sm`;
+                if(week.id === currentWeek) btn.classList.add('active');
+                
+                btn.innerHTML = `
+                    <div>
+                        <span class="block font-bold text-sm uppercase tracking-wider mb-1">Week ${week.id}</span>
+                        <span class="block text-sm truncate">${week.title.split(':')[1]}</span>
+                    </div>
+                    <span class="text-xl">➔</span>
+                `;
+                
+                btn.onclick = () => selectWeek(week.id);
+                navContainer.appendChild(btn);
+            });
+
+            updateDetailPane(currentWeek);
+        }
+
+        function selectWeek(id) {
+            currentWeek = id;
+            // Update button styles
+            document.querySelectorAll('.tab-btn').forEach((btn, index) => {
+                if (index + 1 === id) {
+                    btn.classList.add('active');
+                    btn.classList.remove('bg-white', 'text-slate-700', 'hover:bg-slate-50');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('bg-white', 'text-slate-700', 'hover:bg-slate-50');
+                }
+            });
+            updateDetailPane(id);
+        }
+
+        function updateDetailPane(id) {
+            const data = weeksData.find(w => w.id === id);
+            if(!data) return;
+
+            // Simple transition effect
+            const contentPane = document.getElementById('detail-content');
+            contentPane.style.opacity = '0.5';
+            
+            setTimeout(() => {
+                document.getElementById('detail-title').innerText = data.title;
+                document.getElementById('detail-subtitle').innerText = data.subtitle;
+                document.getElementById('academic-content').innerHTML = data.academic;
+                document.getElementById('project-content').innerHTML = data.project;
+
+                const alertBox = document.getElementById('google-alert');
+                if (data.googleAlert) {
+                    document.getElementById('google-alert-text').innerText = data.googleAlert;
+                    alertBox.classList.remove('hidden');
+                } else {
+                    alertBox.classList.add('hidden');
+                }
+                
+                contentPane.style.opacity = '1';
+            }, 150);
+        }
+
+        function initChecklist() {
+            const container = document.getElementById('checklist-container');
+            
+            checklistItems.forEach(item => {
+                const wrapper = document.createElement('label');
+                wrapper.className = "flex items-start space-x-3 p-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors";
+                
+                // Color code category
+                let badgeColor = "bg-slate-200 text-slate-700";
+                if(item.category === "Auth") badgeColor = "bg-purple-100 text-purple-700 border-purple-200";
+                if(item.category === "Infra") badgeColor = "bg-blue-100 text-blue-700 border-blue-200";
+                if(item.category === "App") badgeColor = "bg-emerald-100 text-emerald-700 border-emerald-200";
+                if(item.category === "Policy") badgeColor = "bg-amber-100 text-amber-700 border-amber-200";
+
+                wrapper.innerHTML = `
+                    <div class="flex-shrink-0 mt-1">
+                        <input type="checkbox" id="${item.id}" class="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md border mb-1 ${badgeColor}">${item.category}</span>
+                        <p class="text-sm text-slate-700 leading-snug">${item.text}</p>
+                    </div>
+                `;
+                
+                const checkbox = wrapper.querySelector('input');
+                checkbox.checked = checkedItems.has(item.id);
+                if (checkbox.checked) {
+                    wrapper.classList.add('bg-blue-50', 'border-blue-200');
+                    wrapper.classList.remove('bg-slate-50', 'border-slate-200');
+                }
+                checkbox.addEventListener('change', (e) => {
+                    if(e.target.checked) {
+                        checkedItems.add(item.id);
+                        wrapper.classList.add('bg-blue-50', 'border-blue-200');
+                        wrapper.classList.remove('bg-slate-50', 'border-slate-200');
+                    } else {
+                        checkedItems.delete(item.id);
+                        wrapper.classList.remove('bg-blue-50', 'border-blue-200');
+                        wrapper.classList.add('bg-slate-50', 'border-slate-200');
+                    }
+                    saveChecklistState();
+                    updateProgress();
+                });
+                
+                container.appendChild(wrapper);
+            });
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const total = checklistItems.length;
+            const checked = checkedItems.size;
+            const percent = Math.round((checked / total) * 100);
+            
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-text').innerText = `${percent}%`;
+            
+            if(percent === 100) {
+                document.getElementById('progress-bar').classList.remove('bg-blue-600');
+                document.getElementById('progress-bar').classList.add('bg-emerald-500');
+            } else {
+                document.getElementById('progress-bar').classList.add('bg-blue-600');
+                document.getElementById('progress-bar').classList.remove('bg-emerald-500');
+            }
+        }
+
+        function initCharts() {
+            const ctx = document.getElementById('synergyChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        'Auth & Identity', 
+                        'Access Control', 
+                        'Data Privacy', 
+                        'Cloud Infrastucture', 
+                        'Network Defense',
+                        'Threat Modeling'
+                    ],
+                    datasets: [{
+                        label: 'CS 434/534 Syllabus Weight',
+                        data: [8, 9, 7, 6, 8, 9],
+                        fill: true,
+                        backgroundColor: 'rgba(30, 58, 138, 0.2)', // blue-900
+                        borderColor: 'rgb(30, 58, 138)',
+                        pointBackgroundColor: 'rgb(30, 58, 138)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(30, 58, 138)'
+                    }, {
+                        label: 'GCP Project Requirement',
+                        data: [9, 8, 10, 8, 6, 7],
+                        fill: true,
+                        backgroundColor: 'rgba(5, 150, 105, 0.2)', // emerald-600
+                        borderColor: 'rgb(5, 150, 105)',
+                        pointBackgroundColor: 'rgb(5, 150, 105)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(5, 150, 105)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.1)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            pointLabels: {
+                                font: { size: 11, family: "'Segoe UI', sans-serif" },
+                                color: '#475569'
+                            },
+                            ticks: { display: false, min: 0, max: 10 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.formattedValue + '/10 Importance';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- 4. Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChecklistState();
+            initRoadmap();
+            initChecklist();
+            initCharts();
+        });
+
+    </script>
+</body>
+</html>
