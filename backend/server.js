@@ -15,6 +15,12 @@ petition-related APIs, and fallback serving of the built React frontend for auth
 // Express framework for middleware registration, API routing, and static asset serving.
 const express = require('express');
 
+// Security headers middleware — sets X-Content-Type-Options, X-Frame-Options, HSTS, etc.
+const helmet = require('helmet');
+
+// Rate limiting middleware — protects against brute-force and DoS on API and auth routes.
+const rateLimit = require('express-rate-limit');
+
 // CORS middleware for local development requests from the frontend dev server.
 const cors = require('cors');
 
@@ -64,6 +70,50 @@ const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 if (missingEnv.length > 0) {
   throw new Error(`Missing required environment variables: ${missingEnv.join(', ')}`);
 }
+
+// --- Security headers (helmet) ---
+// Applies a suite of HTTP response headers that browsers use to block common attacks.
+// contentSecurityPolicy is tuned to allow the React SPA and same-origin API calls only.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'"],
+      styleSrc:   ["'self'", "'unsafe-inline'"],   // inline styles used by React components
+      imgSrc:     ["'self'", "data:", "https://lh3.googleusercontent.com"], // Google profile photos
+      connectSrc: ["'self'"],
+      fontSrc:    ["'self'"],
+      objectSrc:  ["'none'"],
+      frameSrc:   ["'none'"],
+      upgradeInsecureRequests: isProduction ? [] : null
+    }
+  },
+  // HSTS: tell browsers to require HTTPS for 1 year (production only)
+  hsts: isProduction
+    ? { maxAge: 31536000, includeSubDomains: true }
+    : false
+}));
+
+// --- Rate limiting ---
+// General limiter: applied to all API routes.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', apiLimiter);
+
+// Auth limiter: stricter window on login-initiating routes to slow brute-force.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts, please try again later.' }
+});
+app.use('/auth/', authLimiter);
 
 if (!isProduction) {
   app.use(cors({
@@ -224,21 +274,6 @@ app.post('/api/logout', (req, res) => {
 });
 
 /**
- * Diagnostic route for testing database connectivity in development or debugging scenarios.
- */
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const result = await db.testConnection();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-/**
  * Lightweight health-check route used to verify that the backend is running.
  */
 app.get('/health', (req, res) => {
@@ -256,7 +291,6 @@ app.get('/auth/google', async (req, res) => {
 
   const authorizationUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    prompt: 'consent',
     scope: scopes,
     // Keep already granted scopes when the user reauthenticates.
     include_granted_scopes: true,
@@ -265,7 +299,16 @@ app.get('/auth/google', async (req, res) => {
     // Force the consent screen so Google sends a refresh token.
     prompt: 'consent'
   });
-  res.redirect(authorizationUrl);
+
+  // Explicitly flush the session to the store before redirecting so the
+  // state token is guaranteed to be persisted when Google calls back.
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error before OAuth redirect:', err);
+      return res.status(500).send('Internal server error');
+    }
+    res.redirect(authorizationUrl);
+  });
 });
 
 /**
@@ -281,9 +324,11 @@ app.get('/oauth2callback', async (req, res) => {
     return res.redirect(frontend + '/error.html');
   }
 
-  // if (q.state !== req.session.state) {
-  //   return res.status(403).send('State mismatch. Possible CSRF attack.');
-  // }
+  // Verify the CSRF state token matches what was stored before the redirect.
+  // A mismatch means the callback was not initiated by this server.
+  if (!req.session.state || q.state !== req.session.state) {
+    return res.status(403).send('State mismatch. Possible CSRF attack.');
+  }
 
   try {
     const { tokens } = await oauth2Client.getToken(q.code);
@@ -352,18 +397,6 @@ app.get('/oauth2callback', async (req, res) => {
     console.log("authorization error: ", authErr);
     res.redirect('/login');
   }
-});
-
-/**
- * Debug route for inspecting the current Express session contents.
- */
-app.get('/test-session', (req, res) => {
-  res.json({
-    sessionID: req.sessionID,
-    userId: req.session.userId,
-    isAuthenticated: req.session.isAuthenticated,
-    fullSession: req.session
-  });
 });
 
 /**
@@ -876,24 +909,13 @@ app.post("/api/add-petition", async (req, res) => {
 });
 
 /**
- * Development test route for sending a sample group-request email.
- */
-app.get('/api/email-send-test', async(req,res) => {
-  try {
-    email.groupRequest("sgreenvoss@gmail.com", "stellag",
-      "test_from", "testusername"
-    );
-    res.json({success: true, message: "email send"});
-  } catch (error) {
-    console.error("route error: ", error);
-    res.status(500).json({error: error.message});
-  }
-});
-
-/**
  * Searches for users matching the provided query string.
+ * Requires an authenticated session — prevents unauthenticated user enumeration.
  */
 app.get('/api/users/search', async(req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
   const {q} = req.query;
   try {
     const users = await db.searchFor(q);
