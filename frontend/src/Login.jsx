@@ -88,15 +88,20 @@ export default function Login() {
             <div className='column'>
               <h3>Petition a Time</h3>
               <p>
-                With an existing group, you can "petition" your group for a time to meet up. 
+                With an existing group, you can "petition" your group for a time to meet up.
                 View your group's availability and find a time where everyone can meet based on
                 how much you want to prioritize your meetup.
-                Everybody can stay on the same page as everyone gets to see exactly where the 
-                petitioned time lands on their calendar. All of your group members can accept or 
+                Everybody can stay on the same page as everyone gets to see exactly where the
+                petitioned time lands on their calendar. All of your group members can accept or
                 decline a petition.
               </p>
             </div>
           </div>
+          <footer id="legal-footer" style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.9rem', color: '#666' }}>
+            <a href="/privacy">Privacy Policy</a>
+            {' · '}
+            <a href="/tos">Terms of Service</a>
+          </footer>
         </body>
       </div>
       </>
