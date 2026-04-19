@@ -196,7 +196,6 @@ app.get('/api/me', async (req, res) => {
 
   if (req.session.userId) {
     const person_info = await db.getUserByID(req.session.userId);
-    console.log('User info from DB:', person_info); 
     res.json({ user: person_info });
   }
   else {
@@ -321,7 +320,12 @@ app.get('/oauth2callback', async (req, res) => {
 
   // Stop early when Google redirects back with an OAuth error.
   if (q.error) {
-    console.log(q);
+    // Only log the error fields — never the raw query, which may carry the
+    // authorization code on malformed callbacks.
+    console.warn('OAuth callback error:', {
+      error: q.error,
+      error_description: q.error_description
+    });
     return res.redirect(frontend + '/error.html');
   }
 
@@ -338,7 +342,6 @@ app.get('/oauth2callback', async (req, res) => {
     const oauth2 = google.oauth2({version: 'v2', auth: oauth2Client});
     const {data: userInfo} = await oauth2.userinfo.get();
 
-    console.log("expiry date is", tokens.expiry_date);
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
     try {
@@ -395,7 +398,12 @@ app.get('/oauth2callback', async (req, res) => {
     res.redirect("/");
 
   } catch (authErr) {
-    console.log("authorization error: ", authErr);
+    // Log only the message/code — full error objects can carry the
+    // authorization code or Authorization header in their request config.
+    console.error('OAuth token exchange failed:', {
+      message: authErr?.message,
+      code: authErr?.code
+    });
     res.redirect('/login');
   }
 });
@@ -449,16 +457,20 @@ async function ensureValidToken(req, res) {
 
     } catch (errRefresh) {
         if (errRefresh.response && errRefresh.response.data && errRefresh.response.data.error === 'invalid_grant') {
-          console.warn("Google Refresh Token expired for user. Forcing re-authentication.", errRefresh);
+          console.warn('Google refresh token rejected (invalid_grant) — forcing re-authentication.');
           // Clear the session so the frontend sees the user as logged out.
           req.session.destroy((err) => {
-            if (err) console.error("Could not destroy session after refresh failure:", err);
+            if (err) console.error("Could not destroy session after refresh failure:", err?.message);
             return res.status(401).json({ error: "Session expired.  Please log in again." });
           });
           return false;
         }
         // Treat other refresh failures as server errors for the calling route.
-        console.error("Failed to fetch Google API data:", errRefresh);
+        // Log only message/code — error objects can carry tokens in .config.
+        console.error('Failed to refresh Google access token:', {
+          message: errRefresh?.message,
+          code: errRefresh?.code
+        });
         res.status(500).json({ error: "Internal Server Error" });
         return false;
     }
@@ -492,7 +504,10 @@ app.get("/api/events", async (req, res) => {
         // Tell the frontend the session needs a new Google login.
         return res.status(401).json({ error: "Session expired.  Please log in with Google Again." });
       }
-      console.error("Failed to fetch events:", tokenErr);
+      console.error('Failed to fetch events:', {
+        message: tokenErr?.message,
+        code: tokenErr?.code
+      });
       return res.status(500).json({ error: "Internal Server Error" });
   }
   
@@ -503,7 +518,6 @@ app.get("/api/events", async (req, res) => {
   try {
     // Load the stored Google tokens for this request.
     const user = await db.getUserByID(req.session.userId);
-    console.log('user in /api/events: ', user);
     if (!user || !user.refresh_token) {
       return res.status(401).json({ error: "No tokens found. Please re-authenticate." });
     }
