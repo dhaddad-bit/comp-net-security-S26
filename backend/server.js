@@ -59,7 +59,8 @@ const requiredEnv = [
   'SESSION_SECRET',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REDIRECT_URI'
+  'GOOGLE_REDIRECT_URI',
+  'TOKEN_ENCRYPTION_KEY'
 ];
 
 if (isProduction) {
@@ -422,8 +423,7 @@ async function ensureValidToken(req, res) {
 
   // Refresh shortly before expiry so downstream Google calls stay valid.
   if (!expiryDate || now >= expiryDate - fiveMins) {
-    console.log("Token expired or missing expiry. Refreshing...");
-    console.log('User refresh token status:', user.refresh_token ? 'Present' : 'NULL');
+    console.log("Access token expired or near expiry — refreshing.");
 
     if (!user.refresh_token) {
       // Without a refresh token, the caller has to send the user back through login.
@@ -435,17 +435,16 @@ async function ensureValidToken(req, res) {
     });
 
     try {
-      // Let the Google client refresh the access token on demand.
-      const { credentials } = await oauth2Client.getAccessToken();
-      const {access_token, expiry_date} = oauth2Client.credentials;
+      // Let the Google client refresh the access token on demand. It mutates
+      // oauth2Client.credentials with the new access_token and expiry_date.
+      await oauth2Client.getAccessToken();
+      const { access_token, expiry_date } = oauth2Client.credentials;
       await db.updateTokens(
         req.session.userId,
         access_token,
         expiry_date
       );
       console.log("Token refreshed successfully.");
-
-      oauth2Client.setCredentials({credentials});
       return true;
 
     } catch (errRefresh) {
@@ -508,7 +507,8 @@ app.get("/api/events", async (req, res) => {
     if (!user || !user.refresh_token) {
       return res.status(401).json({ error: "No tokens found. Please re-authenticate." });
     }
-    const refreshToken = user.refresh_token; // TODO: encrypt this
+    // Tokens come back decrypted from db.getUserByID.
+    const refreshToken = user.refresh_token;
 
     oauth2Client.setCredentials( {
       refresh_token: refreshToken,

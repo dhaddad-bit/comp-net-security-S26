@@ -10,17 +10,31 @@ Sends emails based on backend requests.
 */
 
 const {Resend} = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Lazy-init so a missing RESEND_API_KEY does not crash server boot. The
+// client is only constructed on the first real send attempt.
+let resendClient = null;
+function getResend() {
+    if (resendClient) return resendClient;
+    if (!process.env.RESEND_API_KEY) return null;
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+    return resendClient;
+}
 
 function groupRequest(user_email, from_username, shareable_link)  {
+    const client = getResend();
+    if (!client) {
+        console.warn('[emailer] RESEND_API_KEY not set — skipping invite email to', user_email);
+        return;
+    }
     // Send the share link email using the sender's username in the subject line.
-    resend.emails.send({
+    client.emails.send({
         from: 'hello@socialscheduler.me',
         to: user_email,
         subject: `Want to join ${from_username}'s group?`,
         html: `<p>Click this link to start meeting with people in ${from_username}'s group on Social Scheduler!</p><a href="https://${shareable_link}">Link here</a></p>`
     });
-}  
+}
 
 module.exports = {
     groupRequest

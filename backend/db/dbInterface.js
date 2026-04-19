@@ -19,6 +19,10 @@ require('dotenv').config({
   path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development'
 });
 
+// Encrypt/decrypt OAuth tokens at the DB boundary so the person table never
+// stores usable credentials in the clear. See backend/services/token_crypto.js.
+const { encryptToken, decryptToken } = require('../services/token_crypto');
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction && !process.env.DATABASE_URL) {
@@ -162,23 +166,24 @@ const insertUpdateUser = async(google_id, email, first_name, last_name, username
         _username = "New user!";
     }
     // Route-level validation handles username rules before this upsert runs.
+    // Tokens are AES-256-GCM encrypted before they ever hit the row.
     const result = await pool.query( `
         INSERT INTO person (google_id, email, first_name, last_name, username, refresh_token, access_token, token_expiry)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (google_id)
-        DO UPDATE SET 
+        DO UPDATE SET
             access_token = $7,
             token_expiry = $8,
             updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT * 1000
         RETURNING user_id`,
-        [   
+        [
             google_id,
             email,
             first_name,
             last_name,
             _username,
-            refresh_token,
-            access_token,
+            encryptToken(refresh_token),
+            encryptToken(access_token),
             token_expiry
         ]
     );
@@ -453,11 +458,17 @@ const updateEvent = async(cal_id, gcal_event_id, eventData) => {
  */
 const getUserByID = async(user_id) => {
     const result = await pool.query(
-        `SELECT user_id, username, email, first_name, last_name, google_id, refresh_token, access_token, token_expiry 
-        FROM person 
+        `SELECT user_id, username, email, first_name, last_name, google_id, refresh_token, access_token, token_expiry
+        FROM person
         WHERE user_id = $1`, [user_id]
     );
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row) return row;
+    // Decrypt tokens at the boundary so callers see plaintext; legacy
+    // unencrypted rows pass through unchanged until the next write.
+    row.refresh_token = decryptToken(row.refresh_token);
+    row.access_token = decryptToken(row.access_token);
+    return row;
 }
 
 
@@ -520,8 +531,8 @@ const searchFor = async(search) => {
  */
 const updateTokens = async(id, access, expiry) => {
     const query = `
-        UPDATE person 
-            SET 
+        UPDATE person
+            SET
             access_token = $2,
             token_expiry = $3,
             updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT * 1000
@@ -529,7 +540,7 @@ const updateTokens = async(id, access, expiry) => {
     `;
     await pool.query(query, [
         id,
-        access,
+        encryptToken(access),
         expiry
     ]);
 }
