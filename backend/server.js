@@ -188,6 +188,17 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(frontendDistDir, "index.html"));
 });
 
+// Public legal pages served as static HTML. Registered ahead of the SPA
+// fallback so Google's verification reviewers and unauthenticated visitors
+// can reach them without the React app loading first.
+const legalPagesDir = path.join(__dirname, "public");
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(legalPagesDir, "privacy.html"));
+});
+app.get('/tos', (req, res) => {
+  res.sendFile(path.join(legalPagesDir, "tos.html"));
+});
+
 // --- api routes ---
 /**
  * Returns the authenticated user's database record, or `null` when no session exists.
