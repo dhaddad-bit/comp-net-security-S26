@@ -305,6 +305,8 @@ export default function Main() {
             <section id="manButtons">
                 <p>It's {username}'s schedule!</p>
                 <button onClick={() => setIsHelpModalOpen(true)}>?</button>
+                <button onClick={() => window.open('/privacy', '_blank', 'noopener,noreferrer')}>Privacy</button>
+                <button onClick={() => window.open('/tos', '_blank', 'noopener,noreferrer')}>Terms</button>
                 <button id="syncCals" onClick={handleSyncCals}>Sync Calendars</button>
                 <button id="logout" onClick={handleLogout}>Logout</button>
             </section>
