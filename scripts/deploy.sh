@@ -22,7 +22,7 @@ echo "Building frontend..."
 npm --prefix frontend run build
 
 echo "Installing backend dependencies..."
-npm --prefix backend ci
+npm --prefix backend ci --omit=dev
 
 ENV_FILE="backend/.env.production"
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -40,4 +40,16 @@ echo "Restarting PM2 ecosystem..."
 pm2 startOrRestart backend/ecosystem.config.cjs --env production --update-env
 pm2 save
 
-echo "Deployment complete."
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
+echo "Waiting for $HEALTH_URL to return 200..."
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null; then
+    echo "Health check passed."
+    echo "Deployment complete."
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "Health check failed after 10 attempts — see 'pm2 logs'."
+exit 1
