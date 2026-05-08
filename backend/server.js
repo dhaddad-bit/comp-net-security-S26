@@ -96,39 +96,6 @@ app.use(helmet({
 }));
 
 // --- Rate limiting ---
-// Per-route limiters are registered before the general /api/ limiter so requests
-// must pass both the stricter route quota and the general quota.
-
-// Google Calendar sync — each call makes outbound Google API requests.
-const googleSyncLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many calendar sync requests, please slow down.' }
-});
-app.use('/api/events', googleSyncLimiter);
-
-// Invite-token minting — generates signed tokens that grant group access.
-const inviteLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many invite requests, please try again later.' }
-});
-app.use('/api/group/invite', inviteLimiter);
-
-// Outbound transactional email via Resend — strict cap to limit abuse cost.
-const emailLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many invite emails, please try again later.' }
-});
-app.use('/api/group/send_link_over_email', emailLimiter);
-
 // General limiter: applied to all API routes.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
