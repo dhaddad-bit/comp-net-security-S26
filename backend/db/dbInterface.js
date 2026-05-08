@@ -268,7 +268,7 @@ const addEvents = async(cal_id, events, priority=3) => {
             ON CONFLICT DO NOTHING`,
             [
                 cal_id,
-                events[i].priority,
+                events[i].priority ?? priority,
                 events[i].start,
                 events[i].end,
                 events[i].title,

@@ -46,7 +46,7 @@ export default function GroupInfoModal({ groupId, groupName, onClose }) {
         const loadGroupDetails = async () => {
             setLoading(true);
             try {
-                const response = await apiGet(`/group/${groupId}`);
+                const response = await apiGet(`/api/group/${groupId}`);
                 if (response && response.success) {
                     setMembers(response.members);
                 }

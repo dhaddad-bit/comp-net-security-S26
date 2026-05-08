@@ -579,7 +579,8 @@ app.get("/api/events", async (req, res) => {
             title: event.summary || "No Title",
             start: start,
             end: end,
-            event_id: event.id
+            event_id: event.id,
+            priority: 3
           };
         });
 

@@ -24,8 +24,9 @@ import { useModalAccessibility } from '../common/useModalAccessibility';
  *    event or all events of the same name
  */
 export default function EventClickModal({ event, onClose, onRefresh }) {
-  // Extract priority, defaulting to 1 (Low) if it's missing or corrupted
-  const initialPriority = Number.isFinite(Number(event?.priority)) ? Number(event.priority) : 1;
+  // Extract priority, defaulting to 3 (High) if it's missing or corrupted (matches the
+  // import-time default for Google Calendar events).
+  const initialPriority = Number.isFinite(Number(event?.priority)) ? Number(event.priority) : 3;
   
   // State to hold the value of the dropdown menu
   const [newPriority, setNewPriority] = useState(initialPriority);
