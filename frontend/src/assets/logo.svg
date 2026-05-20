@@ -1,0 +1,14 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Social Scheduler logo">
+  <!-- Blue disc backdrop -->
+  <circle cx="60" cy="60" r="60" fill="#4285F4"/>
+  <!-- Calendar body -->
+  <rect x="25" y="40" width="70" height="60" rx="8" fill="white"/>
+  <!-- Red header band (clipped to calendar corners) -->
+  <path d="M25 48 a8 8 0 0 1 8 -8 h54 a8 8 0 0 1 8 8 v7 h-70z" fill="#DB4437"/>
+  <!-- Binding rings -->
+  <rect x="38" y="32" width="6" height="16" rx="3" fill="#3c4043"/>
+  <rect x="76" y="32" width="6" height="16" rx="3" fill="#3c4043"/>
+  <!-- Overlapping "people" circles (community on the schedule) -->
+  <circle cx="50" cy="76" r="13" fill="#F4B400"/>
+  <circle cx="70" cy="76" r="13" fill="#0F9D58" fill-opacity="0.85"/>
+</svg>

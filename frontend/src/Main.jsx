@@ -313,8 +313,7 @@ export default function Main() {
 
             {/* logo */}
             <header>
-                <p id="logo">Social Schedule</p>
-                <p id="beta">beta</p>
+                <p id="logo">Social Scheduler</p>
             </header>
 
             {/* Toggle for groups and events sidebars */}

@@ -167,7 +167,6 @@ export default function UsernameCreation() {
             <div className="login-container">
                 <header>
                     <p id="logo">Social Scheduler</p>
-                    <p id="beta">beta</p>
                 </header>
             </div>
             {step === 'username' ? (
