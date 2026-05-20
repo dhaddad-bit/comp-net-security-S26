@@ -5,7 +5,7 @@ Creation Date: 2026-02-12
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend authentication and onboarding
+This file is part of the Social Scheduler frontend authentication and onboarding
 experience. It serves as the first screen users see, provides product context,
 and routes users into backend OAuth authentication.
 */

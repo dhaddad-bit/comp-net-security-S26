@@ -6,7 +6,7 @@ Creation Date: 2026-02-18
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend onboarding system. It sits
+This file is part of the Social Scheduler frontend onboarding system. It sits
 between login and the main dashboard, validating username input and collecting
 initial calendar selections for backend setup.
 */

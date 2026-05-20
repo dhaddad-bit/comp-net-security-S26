@@ -5,7 +5,7 @@ Creation Date: 2026-02-12
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend entrypoint layer. It is the
+This file is part of the Social Scheduler frontend entrypoint layer. It is the
 browser startup file that connects the React component tree to the DOM element
 provided by the static HTML shell.
 */

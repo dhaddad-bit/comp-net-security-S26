@@ -6,7 +6,7 @@ Creation Date: 2026-02-12
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend application shell. It is the
+This file is part of the Social Scheduler frontend application shell. It is the
 application composition root that wires global error context and conditionally
 routes users through authentication/onboarding into the main product interface.
 

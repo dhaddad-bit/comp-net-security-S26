@@ -10,7 +10,7 @@
 Social Scheduler is a web application that allows authenticated users to share
 Google Calendar availability within groups and negotiate meeting times via
 "petitions." The application is deployed on a Linux VPS behind an NGINX reverse
-proxy and is publicly accessible at `socialscheduler.me`.
+proxy and is publicly accessible at `social-scheduler.me`.
 
 ---
 

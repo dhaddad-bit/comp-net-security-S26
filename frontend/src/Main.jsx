@@ -6,7 +6,7 @@ Creation Date: 2026-02-12
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend application. It acts as the
+This file is part of the Social Scheduler frontend application. It acts as the
 container/orchestrator page that wires together major UI modules (calendar,
 group management, petition flow, and invite handling) and shared state updates.
 */
