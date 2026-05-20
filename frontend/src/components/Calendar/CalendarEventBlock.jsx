@@ -230,7 +230,6 @@ export default function CalendarEventBlock({
         top: `${topPercent}%`,
         height: heightPercent,
         opacity: finalOpacity,
-        zIndex: finalZIndex,
         backgroundColor,
         color: textColor,
         border: borderStyle,
