@@ -133,6 +133,36 @@
   transform: translateY(-2px);
 }
 
+.feature-icon-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 96px;
+  margin-bottom: 12px;
+}
+
+.feature-icon {
+  width: 80px;
+  height: 80px;
+  max-width: 100%;
+  display: block;
+  transition: transform 200ms ease;
+}
+
+.column:hover .feature-icon {
+  transform: scale(1.04);
+}
+
+@media (max-width: 600px) {
+  .feature-icon-wrap {
+    height: 80px;
+  }
+  .feature-icon {
+    width: 64px;
+    height: 64px;
+  }
+}
+
 .column h3 {
   margin: 0 0 12px;
   text-align: center;

@@ -19,6 +19,11 @@ Reason Included: Login is implemented as a functional React component using
 import React, { useState, useEffect } from 'react';
 import './css/login.css';
 import logoUrl from './assets/logo.svg';
+import {
+  ImportCalendarIcon,
+  CreateGroupsIcon,
+  PetitionTimeIcon,
+} from './components/FeatureIcons.jsx';
 
 /**
  * Login page component for initiating OAuth and displaying app overview content.
@@ -65,6 +70,9 @@ export default function Login() {
 
           <div className="columns">
             <div className='column'>
+              <div className="feature-icon-wrap">
+                <ImportCalendarIcon className="feature-icon" />
+              </div>
               <h3>Import Your Google Calendars</h3>
               <p>
                 With Social Scheduler, you can import your Google calendars to
@@ -78,6 +86,9 @@ export default function Login() {
               </p>
             </div>
             <div className='column'>
+              <div className="feature-icon-wrap">
+                <CreateGroupsIcon className="feature-icon" />
+              </div>
               <h3>Create Groups</h3>
               <p>
                 Have you ever struggled with scheduling study sessions or hangouts with
@@ -88,6 +99,9 @@ export default function Login() {
               </p>
             </div>
             <div className='column'>
+              <div className="feature-icon-wrap">
+                <PetitionTimeIcon className="feature-icon" />
+              </div>
               <h3>Petition a Time</h3>
               <p>
                 With an existing group, you can "petition" your group for a time to meet up.
