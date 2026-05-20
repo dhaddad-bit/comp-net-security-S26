@@ -12,8 +12,11 @@ fi
 
 cd "$REPO_DIR"
 
-echo "Pulling latest changes..."
-git pull --ff-only
+# Note: `git pull` happens in the calling workflow (.github/workflows/deploy.yml),
+# not here. If we pulled from inside this script, the file would be atomically
+# replaced mid-execution and bash would keep reading the old inode — meaning any
+# edits to lines below the pull (like `npm ci` → `npm install`) wouldn't take
+# effect until the *next* run. Keep the pull external.
 
 echo "Installing frontend dependencies..."
 npm --prefix frontend install
