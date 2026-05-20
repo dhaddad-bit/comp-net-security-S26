@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Social Scheduler** — a web app that lets users share Google Calendar availability within groups and negotiate meeting times via "petitions." Live at `socialscheduler.me`.
+**Social Scheduler** — a web app that lets users share Google Calendar availability within groups and negotiate meeting times via "petitions." Live at `social-scheduler.me`.
 
 Stack: React (Vite) frontend + Node.js/Express backend + PostgreSQL. Production runtime: Linux VPS with NGINX reverse proxy, PM2 process manager.
 

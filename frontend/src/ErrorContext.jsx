@@ -6,7 +6,7 @@ Creation Date: 2026-03-06
 Initial Author(s): Anna Norris
 
 System Context:
-This file is part of the Social Schedule frontend state infrastructure. It
+This file is part of the Social Scheduler frontend state infrastructure. It
 supplies globally accessible error state used by top-level rendering logic to
 show server/error pages and clear errors after recovery.
 */

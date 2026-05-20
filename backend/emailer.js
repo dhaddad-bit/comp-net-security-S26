@@ -29,7 +29,7 @@ function groupRequest(user_email, from_username, shareable_link)  {
     }
     // Send the share link email using the sender's username in the subject line.
     client.emails.send({
-        from: 'hello@socialscheduler.me',
+        from: 'hello@social-scheduler.me',
         to: user_email,
         subject: `Want to join ${from_username}'s group?`,
         html: `<p>Click this link to start meeting with people in ${from_username}'s group on Social Scheduler!</p><a href="https://${shareable_link}">Link here</a></p>`

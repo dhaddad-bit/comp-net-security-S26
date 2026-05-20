@@ -6,7 +6,7 @@ Creation Date: 2026-02-02
 Initial Author(s): Garrett Caldwell
 
 System Context:
-This file is part of the Social Schedule frontend service layer. It provides a
+This file is part of the Social Scheduler frontend service layer. It provides a
 single request utility surface used by UI components to communicate with backend
 API endpoints while enforcing consistent response parsing and error handling.
 

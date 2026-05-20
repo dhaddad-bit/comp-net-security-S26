@@ -1,6 +1,6 @@
 # software-methods-w26
 
-Please visit our website at: https://socialscheduler.me/.
+Please visit our website at: https://social-scheduler.me/.
 
 Due to Google Oauth restrictions, you must send one of the developers 
 the email address(es) of the account(s) you wish to use to authenticate in the website.
