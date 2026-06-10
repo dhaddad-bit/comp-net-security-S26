@@ -1,84 +1,134 @@
-# software-methods-w26
+# Social Scheduler
 
-Please visit our website at: https://social-scheduler.me/.
+Share Google Calendar availability within groups and negotiate meeting times via "petitions."
 
-Due to Google Oauth restrictions, you must send one of the developers 
-the email address(es) of the account(s) you wish to use to authenticate in the website.
-The team will add your account as a tester so that you can enter your account. 
+**Live:** https://social-scheduler.me
 
-Publishing the website with Google Oauth is a lengthy process. Unfortunately, DAGS was unable 
-to go through this process by the due date of the project.
+The application's Google OAuth client is **verified**, so anyone with a Google account can sign in
+directly — no tester allowlist required. To revoke the app's access at any time, go to your Google
+Account → **Security → Third-party apps & services → Social Scheduler → Remove access**.
 
-To remove permissions given to the app, you can go to your Google account settings ->
-Third-party apps & services -> Scheduler Demo -> Delete all connections you have with Scheduler Demo.
+> Security engineering for this app (threat model, OAuth hardening, token encryption, audit
+> logging) is documented in [`docs/threat-model.md`](docs/threat-model.md) and the CS 434/534
+> final report under [`docs/report/`](docs/report/).
 
-===============================================
-
-To Run a Local Instance:
+---
 
 ## Tech Stack
-* **Frontend:** React (Create React App / Vite)
-* **Backend:** Node.js, Express
-* **Database:** PostgreSQL
+
+* **Frontend:** React + **Vite**
+* **Backend:** Node.js + Express
+* **Database:** PostgreSQL (sessions persisted via `connect-pg-simple`)
+* **Production:** Linux VPS · NGINX reverse proxy (TLS via Let's Encrypt/Certbot) · PM2
 
 ---
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your machine:
-1. [Node.js](https://nodejs.org/) (v16.0 or higher recommended)
-2. [PostgreSQL](https://www.postgresql.org/download/) (running locally or via a cloud provider)
+1. [Node.js](https://nodejs.org/) (v18+ recommended)
+2. [PostgreSQL](https://www.postgresql.org/download/) (local or hosted)
+3. A Google Cloud OAuth 2.0 client (Web) with `calendar.readonly`, `userinfo.email`,
+   `userinfo.profile` scopes.
 
 ---
 
-## Step-by-Step Setup
+## Local Setup
 
-### 1. Install Dependencies
-You will need to install the Node packages for both the backend server and the frontend client.
+### 1. Install dependencies
 
-Install backend dependencies (Express, pg, cors, dotenv, etc.)
+```bash
+cd backend  && npm install
+cd ../frontend && npm install
+```
 
-Navigate to the frontend directory and install React dependencies
+### 2. Set up the database
 
-### 2. Set Up the Database
-This app relies on a PostgreSQL relational database.
+Create a database, then apply the schema files in [`db/`](db/) (in order):
 
-1. Open your PostgreSQL terminal (psql) or a GUI tool like pgAdmin/DBeaver.
+```bash
+psql -d social_scheduler -f db/table_initialization.sql
+psql -d social_scheduler -f db/group_support.sql
+psql -d social_scheduler -f db/001_petitions_schema.sql
+psql -d social_scheduler -f db/calendar_sync_meta.sql
+# db/002_security_audit_log.sql is applied automatically at server boot (ensureAuditSchema)
+```
 
-2. Create a new database for the project:
+### 3. Configure environment variables
 
-3. Run your schema generation scripts to create the required tables (e.g., users, calendar, cal_event, groups).
+The backend loads `backend/.env.development` or `backend/.env.production` depending on
+`NODE_ENV`. Create `backend/.env.development` from this template:
 
-### 3. Configure Environment Variables
-The application uses environment variables to securely connect to the database and manage API routing.
+```bash
+# --- backend/.env.development ---
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=          # must exactly match the Google Cloud Console entry
+SESSION_SECRET=
+PORT=3000
 
-Create a file named .env.development in the root directory of your backend server, and add the following template:
-
-# --- .env.development ---
-
-GOOGLE_CLIENT_ID = 
-GOOGLE_CLIENT_SECRET = 
-GOOGLE_REDIRECT_URI = 
-SESSION_SECRET = 
-PORT = 
-
+# Database: either DATABASE_URL or the individual DB_* vars
 DATABASE_URL=
 DB_USER=
 DB_PASSWORD=
 DB_HOST=
 DB_PORT=
 DB_NAME=
+DB_SSL=disable               # disable (loopback) | require | verify-full
+DB_CA_CERT=                  # path to CA bundle when DB_SSL enforces verification
 
+# AES-256-GCM key for encrypting OAuth tokens at rest (32 bytes, hex or base64)
+TOKEN_ENCRYPTION_KEY=
 
 NODE_ENV=development
 FRONTEND_URL=
 BACKEND_URL=
 
 RESEND_API_KEY=
+```
 
-# Build the frontend
-npm run build
+> **Never commit secrets.** `TOKEN_ENCRYPTION_KEY` is required at boot — without it the server
+> cannot encrypt/decrypt stored tokens.
 
-# Start the Backend
-npm run dev
+### 4. Build the frontend and run
 
+```bash
+cd frontend && npm run build      # → frontend/dist
+cd ../backend && npm run dev      # nodemon, http://localhost:3000
+```
+
+---
+
+## Security
+
+The app implements defense-in-depth controls; details and source pointers live in the
+[threat model](docs/threat-model.md).
+
+* **OAuth tokens encrypted at rest** with AES-256-GCM (`backend/services/token_crypto.js`),
+  applied at the DB boundary. Migrate legacy plaintext rows with `npm run migrate:tokens`.
+* **OAuth CSRF protection** — per-request `state` generated, stored in session, and verified on
+  the callback.
+* **Security audit log** — `security_audit_log` table records auth/authorization events with no
+  token or secret material (`backend/services/audit_log.js`).
+* **Session hardening** — `HttpOnly` + `SameSite=Lax` + `Secure` (prod) cookies; server-side
+  Postgres session store.
+* **`helmet`** security headers (incl. CSP) and **`express-rate-limit`** on `/api/*` and
+  `/auth/*`.
+* **Parameterized SQL** throughout; **least-privilege** read-only Google scopes.
+
+---
+
+## Useful commands
+
+| Where | Command | Purpose |
+|---|---|---|
+| backend | `npm run dev` | Dev server (nodemon) |
+| backend | `npm run start:prod` | Production start (`NODE_ENV=production`) |
+| backend | `npm test` | Jest tests |
+| backend | `npm run typecheck` | TypeScript check |
+| backend | `npm run migrate:tokens` | Encrypt legacy plaintext tokens |
+| backend | `npm run pm2:start` / `pm2:reload` | PM2 process management |
+| frontend | `npm run dev` | Vite dev server |
+| frontend | `npm run build` | Production build → `frontend/dist` |
+| frontend | `npm run test:vitest` | Vitest unit tests |
+
+**Health check:** `GET http://127.0.0.1:3000/health`

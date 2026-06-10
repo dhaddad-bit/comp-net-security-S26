@@ -43,6 +43,7 @@ const db = require("./db/dbInterface");
 const email = require('./emailer'); 
 const groupModule = require("./groups");
 const petitionRoutes = require("./routes/petition_routes");
+const { recordAuditEvent, EVENT_TYPES, OUTCOMES } = require("./services/audit_log");
 const { normalizeCalendarEvent } = require("./calendar_event_normalizer");
 
 // Load the environment file that matches the current runtime.
@@ -276,10 +277,13 @@ app.post('/api/select-calendars', async (req, res) => {
  * Logs the current user out by destroying the active session.
  */
 app.post('/api/logout', (req, res) => {
+  // Capture the user id before the session is torn down so the audit row keeps it.
+  const userId = req.session?.userId ?? null;
   req.session.destroy((err) => {
     if (err) {
       return res.status(500).json({ success: false, error: 'Failed to logout' });
     }
+    recordAuditEvent({ eventType: EVENT_TYPES.LOGOUT, outcome: OUTCOMES.SUCCESS, userId, req });
     res.json({ success: true });
   });
 });
@@ -337,12 +341,14 @@ app.get('/oauth2callback', async (req, res) => {
       error: q.error,
       error_description: q.error_description
     });
+    recordAuditEvent({ eventType: EVENT_TYPES.LOGIN_FAILURE, outcome: OUTCOMES.FAILURE, req, detail: { reason: q.error } });
     return res.redirect(frontend + '/error.html');
   }
 
   // Verify the CSRF state token matches what was stored before the redirect.
   // A mismatch means the callback was not initiated by this server.
   if (!req.session.state || q.state !== req.session.state) {
+    recordAuditEvent({ eventType: EVENT_TYPES.LOGIN_FAILURE, outcome: OUTCOMES.DENIED, req, detail: { reason: 'state_mismatch' } });
     return res.status(403).send('State mismatch. Possible CSRF attack.');
   }
 
@@ -390,6 +396,8 @@ app.get('/oauth2callback', async (req, res) => {
     req.session.userId = userId;
     req.session.isAuthenticated = true;
 
+    recordAuditEvent({ eventType: EVENT_TYPES.LOGIN_SUCCESS, outcome: OUTCOMES.SUCCESS, userId, req, detail: { email: userInfo.email } });
+
     delete req.session.state;
 
     await new Promise((resolve, reject) => {
@@ -415,6 +423,7 @@ app.get('/oauth2callback', async (req, res) => {
       message: authErr?.message,
       code: authErr?.code
     });
+    recordAuditEvent({ eventType: EVENT_TYPES.LOGIN_FAILURE, outcome: OUTCOMES.FAILURE, req, detail: { code: authErr?.code ?? null } });
     res.redirect('/login');
   }
 });
@@ -464,11 +473,13 @@ async function ensureValidToken(req, res) {
         expiry_date
       );
       console.log("Token refreshed successfully.");
+      recordAuditEvent({ eventType: EVENT_TYPES.TOKEN_REFRESH_SUCCESS, outcome: OUTCOMES.SUCCESS, userId: req.session.userId, req });
       return true;
 
     } catch (errRefresh) {
         if (errRefresh.response && errRefresh.response.data && errRefresh.response.data.error === 'invalid_grant') {
           console.warn('Google refresh token rejected (invalid_grant) — forcing re-authentication.');
+          recordAuditEvent({ eventType: EVENT_TYPES.TOKEN_REFRESH_FAILURE, outcome: OUTCOMES.FAILURE, userId: req.session.userId, req, detail: { reason: 'invalid_grant' } });
           // Clear the session so the frontend sees the user as logged out.
           req.session.destroy((err) => {
             if (err) console.error("Could not destroy session after refresh failure:", err?.message);
@@ -482,6 +493,7 @@ async function ensureValidToken(req, res) {
           message: errRefresh?.message,
           code: errRefresh?.code
         });
+        recordAuditEvent({ eventType: EVENT_TYPES.TOKEN_REFRESH_FAILURE, outcome: OUTCOMES.FAILURE, userId: req.session.userId, req, detail: { code: errRefresh?.code ?? null } });
         res.status(500).json({ error: "Internal Server Error" });
         return false;
     }
@@ -1028,6 +1040,18 @@ async function startServer() {
     console.log("[Startup] Petition schema ready: petitions and petition_responses tables verified.");
   } catch (error) {
     console.error("[Startup] Petition schema readiness check failed. Exiting.", {
+      errorMessage: error?.message || String(error),
+      errorCode: error?.code || error?.appCode || null
+    });
+    process.exit(1);
+  }
+
+  console.log("[Startup] Verifying security audit schema...");
+  try {
+    await db.ensureAuditSchema();
+    console.log("[Startup] Security audit schema ready: security_audit_log table verified.");
+  } catch (error) {
+    console.error("[Startup] Security audit schema setup failed. Exiting.", {
       errorMessage: error?.message || String(error),
       errorCode: error?.code || error?.appCode || null
     });

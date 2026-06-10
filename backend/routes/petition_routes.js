@@ -11,6 +11,7 @@ Authenticates and validates petitions made by users on the frontend and sends re
 */
 
 const crypto = require("crypto");
+const { recordAuditEvent, EVENT_TYPES, OUTCOMES } = require("../services/audit_log");
 
 /**
  * Ensures a stable trace ID is attached to the current request/response lifecycle.
@@ -94,6 +95,7 @@ function logRouteError(req, res, stage, error, extra = {}) {
 function requireAuth(req, res, next) {
   // Copy the session user id onto the request once auth passes.
   if (!req.session || !req.session.userId || !req.session.isAuthenticated) {
+    recordAuditEvent({ eventType: EVENT_TYPES.AUTH_DENIED, outcome: OUTCOMES.DENIED, req, detail: { method: req.method, path: req.originalUrl } });
     return sendApiError(req, res, 401, "Unauthorized");
   }
 
@@ -131,6 +133,7 @@ function requireGroupMember(db) {
 
       const inGroup = await db.isUserInGroup(req.userId, groupId);
       if (!inGroup) {
+        recordAuditEvent({ eventType: EVENT_TYPES.PERMISSION_DENIED, outcome: OUTCOMES.DENIED, userId: req.userId, req, detail: { groupId, reason: 'not_a_member' } });
         return sendApiError(req, res, 403, "Forbidden");
       }
 

@@ -100,7 +100,9 @@ Frontend dev server (`vite`) proxies all requests to `http://localhost:3000` (se
 
 ### Database tables (key ones)
 
-`users`, `calendar`, `cal_event`, `groups`, `group_members`, `petitions`, `petition_responses`, `session`
+`users`, `calendar`, `cal_event`, `groups`, `group_members`, `petitions`, `petition_responses`, `session`, `security_audit_log`
+
+`security_audit_log` holds the security audit trail (auth, token, and authorization events). It is created on boot by `db.ensureAuditSchema()` and written via `db.insertSecurityAudit()` / `services/audit_log.js`. Its `detail` JSONB column must never contain tokens or secrets.
 
 ---
 
@@ -116,6 +118,9 @@ GOOGLE_REDIRECT_URI        # Must exactly match the Google Cloud Console entry
 SESSION_SECRET
 PORT
 DATABASE_URL               # or individual DB_* vars
+DB_SSL                     # Production DB TLS mode: disable (default, loopback) | require | verify-full
+DB_CA_CERT                 # Path to CA bundle when DB_SSL enforces verification (off-host DB)
+TOKEN_ENCRYPTION_KEY       # 32-byte hex/base64 key for AES-256-GCM token encryption at rest
 FRONTEND_URL               # Required in production
 BACKEND_URL
 RESEND_API_KEY
@@ -129,7 +134,7 @@ These rules apply to any code touching auth, tokens, or Google API:
 
 - **Approved scopes only**: `calendar.readonly`, `userinfo.email`, `userinfo.profile`. No wildcards.
 - **State parameter**: CSRF state must be generated per-request, stored in session, verified on callback, and cleared after. The state check in `server.js` is currently **commented out** — do not leave it disabled.
-- **Tokens at rest**: refresh tokens must be encrypted (AES-256-GCM) before DB writes. Currently stored plaintext (marked with `TODO: encrypt this` in server.js) — this is a known gap.
+- **Tokens at rest**: refresh and access tokens are encrypted with AES-256-GCM before DB writes via `backend/services/token_crypto.js`, applied at the DB boundary in `db/dbInterface.js` (`encryptToken` on write, `decryptToken` on read). Requires `TOKEN_ENCRYPTION_KEY` (32 bytes hex/base64) at boot. Legacy plaintext rows are migrated with `npm run migrate:tokens`.
 - **Never log** client secret, access tokens, refresh tokens, or raw authorization codes.
 - **Session cookies**: `HttpOnly`, `Secure` in production, `SameSite=Lax`.
 - **Redirect URI**: runtime `GOOGLE_REDIRECT_URI` must exactly match the Google Cloud Console entry.
