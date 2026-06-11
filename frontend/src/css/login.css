@@ -241,6 +241,13 @@
   background-color: #f4f5f7;
 }
 
+/* The onboarding header reuses .login-container, but its full-page
+   min-height: 100vh would fill the viewport and push the username
+   creator to the bottom. Keep it sized to its content here. */
+.onboarding-container .login-container {
+  min-height: auto;
+}
+
 .username-creator {
   max-width: 500px;
   left: auto;

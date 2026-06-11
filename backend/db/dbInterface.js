@@ -29,9 +29,32 @@ if (isProduction && !process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required when NODE_ENV=production');
 }
 
+/**
+ * Build the TLS config for the production Pool from DB_SSL / DB_CA_CERT.
+ *
+ * Production PostgreSQL runs on the same VPS over the loopback interface, so the
+ * connection never crosses a network and TLS is unnecessary (DB_SSL defaults to
+ * "disable"). If the database is ever moved off-host, set DB_SSL=require (or
+ * verify-full) and we enforce a verified server certificate — we never disable
+ * certificate validation with rejectUnauthorized:false.
+ *
+ * @returns {false|{rejectUnauthorized:boolean,ca?:string}}
+ */
+function buildSslConfig() {
+    const mode = (process.env.DB_SSL || 'disable').toLowerCase();
+    if (mode === 'disable' || mode === 'false' || mode === 'off' || mode === '') {
+        return false;
+    }
+    const ssl = { rejectUnauthorized: true };
+    if (process.env.DB_CA_CERT) {
+        ssl.ca = fs.readFileSync(process.env.DB_CA_CERT, 'utf8');
+    }
+    return ssl;
+}
+
 const pool = new Pool(
-    isProduction 
-    ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+    isProduction
+    ? { connectionString: process.env.DATABASE_URL, ssl: buildSslConfig() }
     : { // Local development connection settings.
         user: process.env.DB_USER,
         host: process.env.DB_HOST,
@@ -144,6 +167,43 @@ const ensurePetitionSchema = async() => {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(schemaSql);
     await assertPetitionSchemaReady(pool);
+};
+
+
+/**
+ * Ensure the security_audit_log table exists. Applied at startup like the
+ * petition schema so the audit writer always has somewhere to write.
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
+const ensureAuditSchema = async() => {
+    const schemaPath = path.resolve(__dirname, '..', '..', 'db', '002_security_audit_log.sql');
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schemaSql);
+};
+
+
+/**
+ * Insert one security audit row. Detail is stored as JSONB and must never carry
+ * tokens, auth codes, or secrets — callers pass only whitelisted fields.
+ *
+ * @async
+ * @param {Object} entry
+ * @param {string} entry.eventType
+ * @param {string} entry.outcome - SUCCESS | FAILURE | DENIED
+ * @param {number|null} [entry.userId]
+ * @param {string|null} [entry.ip]
+ * @param {string|null} [entry.userAgent]
+ * @param {Object|null} [entry.detail]
+ * @returns {Promise<void>}
+ */
+const insertSecurityAudit = async({ eventType, outcome, userId = null, ip = null, userAgent = null, detail = null }) => {
+    await pool.query(
+        `INSERT INTO security_audit_log (event_type, outcome, user_id, ip, user_agent, detail)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [eventType, outcome, userId, ip, userAgent, detail ? JSON.stringify(detail) : null]
+    );
 };
 
 
@@ -1178,6 +1238,8 @@ module.exports = {
     testConnection,
     assertPetitionSchemaReady,
     ensurePetitionSchema,
+    ensureAuditSchema,
+    insertSecurityAudit,
     getUsersWithName,
     getUserByID,
     getNameByID,

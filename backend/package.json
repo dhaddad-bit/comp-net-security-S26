@@ -12,6 +12,7 @@
     "test:algorithm": "npm --prefix ./algorithm test -- --config ./jest.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "start:prod": "NODE_ENV=production node server.js",
+    "migrate:tokens": "node scripts/reencrypt_tokens.js",
     "pm2:start": "pm2 start ecosystem.config.cjs --env production",
     "pm2:reload": "pm2 reload ecosystem.config.cjs --env production",
     "pm2:logs": "pm2 logs social-scheduler-backend"
